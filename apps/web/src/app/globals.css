@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f6f7fb;
+  --surface: #ffffff;
+  --foreground: #171a23;
+  --muted: #646b7d;
+  --border: #e3e6ee;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-foreground: #ffffff;
+  --danger: #c2271d;
+  --danger-soft: #fdecea;
+  --success: #17803d;
+  --success-soft: #e7f6ec;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0e1017;
+    --surface: #171a24;
+    --foreground: #eceef4;
+    --muted: #9aa1b2;
+    --border: #2a2e3b;
+    --primary: #818cf8;
+    --primary-hover: #a5b4fc;
+    --primary-foreground: #0e1017;
+    --danger: #f87171;
+    --danger-soft: #3b1715;
+    --success: #4ade80;
+    --success-soft: #12301d;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --font-sans: var(--font-vazirmatn), system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Emails and passwords read left-to-right even in an RTL page. */
+input[type="email"],
+input[type="password"] {
+  direction: ltr;
+  text-align: left;
+}
