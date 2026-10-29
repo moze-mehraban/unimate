@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { PASSWORD_MIN_LENGTH, PROFILE_LIMITS } from "@unimate/shared";
 import { Alert, Field, SubmitButton } from "@/components/ui";
-import type { FormState } from "../../(auth)/actions";
+import type { FormState } from "@/lib/forms";
 import { updatePassword, updateProfile } from "./actions";
 
 export function ProfileForm({ fullName, university }: { fullName: string; university: string }) {

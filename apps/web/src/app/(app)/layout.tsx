@@ -5,6 +5,7 @@ import { UserMenu } from "./user-menu";
 
 const NAV = [
   { href: "/dashboard", label: "داشبورد" },
+  { href: "/classes", label: "کلاس‌ها" },
   { href: "/profile", label: "پروفایل" },
 ] as const;
 

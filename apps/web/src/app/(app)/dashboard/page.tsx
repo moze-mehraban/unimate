@@ -13,9 +13,13 @@ export default function DashboardPage() {
       </Suspense>
 
       <section className="rounded-2xl border border-dashed border-border bg-surface p-8 text-center">
-        <h2 className="font-bold">کلاس‌ها و تکالیف به‌زودی</h2>
+        <h2 className="font-bold">تکالیف به‌زودی</h2>
         <p className="mt-2 text-sm text-muted">
-          در مرحلهٔ بعد ساخت کلاس، دعوت هم‌کلاسی‌ها و مدیریت تکالیف اینجا اضافه می‌شود.
+          فهرست تکالیف همهٔ کلاس‌هایت در مراحل بعد اینجا نمایش داده می‌شود. فعلاً از{" "}
+          <Link href="/classes" className="text-primary hover:underline">
+            کلاس‌ها
+          </Link>{" "}
+          شروع کن.
         </p>
       </section>
     </div>

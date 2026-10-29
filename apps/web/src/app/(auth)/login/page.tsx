@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { LoginForm } from "./login-form";
 
@@ -17,13 +16,6 @@ export default function LoginPage() {
       <Suspense fallback={<div className="h-72" />}>
         <LoginForm />
       </Suspense>
-
-      <p className="text-center text-sm text-muted">
-        حساب نداری؟{" "}
-        <Link href="/signup" className="font-medium text-primary hover:underline">
-          ثبت‌نام کن
-        </Link>
-      </p>
     </div>
   );
 }

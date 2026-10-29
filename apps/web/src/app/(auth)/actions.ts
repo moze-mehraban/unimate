@@ -5,19 +5,8 @@ import { isValidEmail, PASSWORD_MIN_LENGTH, PROFILE_LIMITS } from "@unimate/shar
 import { createClient } from "@/lib/supabase/server";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { getOrigin, safeNextPath } from "@/lib/redirect";
+import { str, type FormState } from "@/lib/forms";
 
-export type FormState = {
-  error?: string;
-  success?: string;
-  fieldErrors?: Record<string, string>;
-  /** Echoed back so inputs keep their values after a failed submit. */
-  values?: Record<string, string>;
-};
-
-function str(formData: FormData, key: string) {
-  const value = formData.get(key);
-  return typeof value === "string" ? value.trim() : "";
-}
 
 export async function signIn(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = str(formData, "email");
@@ -40,6 +29,7 @@ export async function signUp(_prev: FormState, formData: FormData): Promise<Form
   const university = str(formData, "university");
   const email = str(formData, "email");
   const password = String(formData.get("password") ?? "");
+  const next = safeNextPath(formData.get("next"));
   const values = { full_name: fullName, university, email };
 
   const fieldErrors: Record<string, string> = {};
@@ -59,13 +49,13 @@ export async function signUp(_prev: FormState, formData: FormData): Promise<Form
     options: {
       // Picked up by the handle_new_user trigger to fill the profile.
       data: { full_name: fullName, university },
-      emailRedirectTo: `${await getOrigin()}/auth/callback?next=/dashboard`,
+      emailRedirectTo: `${await getOrigin()}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
   if (error) return { error: authErrorMessage(error), values };
 
   // Email confirmation disabled → we already have a session.
-  if (data.session) redirect("/dashboard");
+  if (data.session) redirect(next);
 
   return {
     success: "حساب شما ساخته شد. لینک تأیید به ایمیلتان ارسال شد؛ پس از تأیید وارد شوید.",

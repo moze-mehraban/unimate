@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { PASSWORD_MIN_LENGTH, PROFILE_LIMITS } from "@unimate/shared";
 import { createClient } from "@/lib/supabase/server";
 import { authErrorMessage, GENERIC_ERROR } from "@/lib/auth-errors";
-import type { FormState } from "../../(auth)/actions";
+import type { FormState } from "@/lib/forms";
 
 export async function updateProfile(_prev: FormState, formData: FormData): Promise<FormState> {
   const fullName = String(formData.get("full_name") ?? "").trim();
