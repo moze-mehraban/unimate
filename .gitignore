@@ -23,3 +23,6 @@ supabase/.temp
 
 .DS_Store
 *.log
+
+# Local Supabase CLI output (contains local keys)
+result
