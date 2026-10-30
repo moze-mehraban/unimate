@@ -3,8 +3,10 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { buttonStyles } from "@/components/ui";
 import { getClassOrNotFound } from "@/lib/data/classes";
+import { AssignmentsSection } from "./assignments-section";
 import { InvitesSection } from "./invites-section";
 import { MembersSection } from "./members-section";
+import { ReportsSection } from "./reports-section";
 import { RequestsSection } from "./requests-section";
 
 export const metadata: Metadata = { title: "کلاس" };
@@ -42,9 +44,9 @@ async function ClassView({ params }: { params: Promise<{ classId: string }> }) {
         </Link>
       </header>
 
-      <section className="rounded-2xl border border-dashed border-border bg-surface p-6 text-center text-sm text-muted">
-        تکالیف این کلاس در مرحلهٔ بعد اینجا نمایش داده می‌شوند.
-      </section>
+      {cls.isOwner ? <ReportsSection classId={cls.id} /> : null}
+
+      <AssignmentsSection cls={cls} />
 
       {cls.isOwner ? (
         <>

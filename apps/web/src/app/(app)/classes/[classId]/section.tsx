@@ -4,11 +4,14 @@ export function Section({
   title,
   description,
   badge,
+  action,
   children,
 }: {
   title: string;
   description?: string;
   badge?: ReactNode;
+  /** Rendered at the end of the header row, e.g. an "add" button. */
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -16,6 +19,7 @@ export function Section({
       <div className="mb-4 flex items-center gap-2">
         <h2 className="font-bold">{title}</h2>
         {badge}
+        {action ? <div className="ms-auto">{action}</div> : null}
       </div>
       {description ? <p className="-mt-2 mb-4 text-sm text-muted">{description}</p> : null}
       {children}
