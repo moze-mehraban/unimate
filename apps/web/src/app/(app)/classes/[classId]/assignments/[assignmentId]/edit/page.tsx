@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
+import { BackLink } from "@/components/icons";
+import { TaskForm } from "@/components/task-form";
 import { getEditableAssignment } from "@/lib/data/assignments";
 import { toTehranInputValue } from "@/lib/format";
 import { updateAssignment } from "../../actions";
-import { TaskForm } from "@/components/task-form";
 
 export const metadata: Metadata = { title: "ویرایش تکلیف" };
 
@@ -25,9 +25,7 @@ async function EditAssignment({ params }: { params: Promise<{ classId: string; a
   return (
     <>
       <div>
-        <Link href={`/classes/${cls.id}`} className="text-sm text-muted hover:text-foreground">
-          → {cls.course_name}
-        </Link>
+        <BackLink href={`/classes/${cls.id}`}>{cls.course_name}</BackLink>
         <h1 className="mt-2 text-2xl font-bold">ویرایش تکلیف</h1>
       </div>
       <section className="rounded-2xl border border-border bg-surface p-6">

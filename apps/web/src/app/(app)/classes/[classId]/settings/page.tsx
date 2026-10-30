@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
+import { BackLink } from "@/components/icons";
 import { ActionButton } from "@/components/ui";
 import { getClassOrNotFound } from "@/lib/data/classes";
 import { deleteClass, leaveClass, updateClass } from "../../actions";
@@ -25,9 +25,7 @@ async function Settings({ params }: { params: Promise<{ classId: string }> }) {
   return (
     <>
       <div>
-        <Link href={`/classes/${cls.id}`} className="text-sm text-muted hover:text-foreground">
-          → {cls.course_name}
-        </Link>
+        <BackLink href={`/classes/${cls.id}`}>{cls.course_name}</BackLink>
         <h1 className="mt-2 text-2xl font-bold">{cls.isOwner ? "تنظیمات کلاس" : "عضویت در کلاس"}</h1>
       </div>
 

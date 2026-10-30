@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { BackLink } from "@/components/icons";
 import { buttonStyles } from "@/components/ui";
 import { getClassOrNotFound } from "@/lib/data/classes";
 import { AssignmentsSection } from "./assignments-section";
@@ -14,9 +15,7 @@ export const metadata: Metadata = { title: "کلاس" };
 export default function ClassPage({ params }: PageProps<"/classes/[classId]">) {
   return (
     <div className="flex flex-col gap-6">
-      <Link href="/classes" className="text-sm text-muted hover:text-foreground">
-        → کلاس‌ها
-      </Link>
+      <BackLink href="/classes">کلاس‌ها</BackLink>
       {/* params are request-time data under Cache Components. */}
       <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-surface" />}>
         <ClassView params={params} />

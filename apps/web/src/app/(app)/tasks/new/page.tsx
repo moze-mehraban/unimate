@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/icons";
 import { TaskForm } from "@/components/task-form";
 import { createTask } from "../actions";
 
@@ -9,9 +9,7 @@ export default function NewTaskPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <div>
-        <Link href="/dashboard" className="text-sm text-muted hover:text-foreground">
-          → کارهای من
-        </Link>
+        <BackLink href="/dashboard">کارهای من</BackLink>
         <h1 className="mt-2 text-2xl font-bold">کار شخصی جدید</h1>
         <p className="mt-1 text-sm text-muted">فقط خودت این کار را می‌بینی.</p>
       </div>

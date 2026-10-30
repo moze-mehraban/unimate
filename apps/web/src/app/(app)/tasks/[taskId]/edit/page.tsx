@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { BackLink } from "@/components/icons";
 import { TaskForm } from "@/components/task-form";
 import { getPersonalTask } from "@/lib/data/my-work";
 import { toTehranInputValue } from "@/lib/format";
@@ -13,9 +13,7 @@ export const metadata: Metadata = { title: "ویرایش کار شخصی" };
 export default function EditTaskPage({ params }: PageProps<"/tasks/[taskId]/edit">) {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
-      <Link href="/dashboard" className="text-sm text-muted hover:text-foreground">
-        → کارهای من
-      </Link>
+      <BackLink href="/dashboard">کارهای من</BackLink>
       <Suspense fallback={<div className="h-[32rem] animate-pulse rounded-2xl bg-surface" />}>
         <EditTask params={params} />
       </Suspense>
