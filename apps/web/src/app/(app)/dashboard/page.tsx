@@ -1,30 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { StatusControl } from "@/components/status-control";
-import { ActionButton, buttonStyles } from "@/components/ui";
+import { buttonStyles } from "@/components/ui";
+import { WorkFilterBar } from "@/components/work-filter-bar";
+import { WorkRow } from "@/components/work-row";
 import { requireUser } from "@/lib/auth";
-import { getMyWork, type WorkItem } from "@/lib/data/my-work";
-import { formatDeadline, formatNumber, type DueState } from "@/lib/format";
-import { PRIORITY_LABEL } from "@/lib/labels";
-import { setAssignmentStatus } from "../classes/[classId]/assignments/actions";
-import { deleteTask, setTaskStatus } from "../tasks/actions";
+import { getMyWork } from "@/lib/data/my-work";
+import { formatNumber } from "@/lib/format";
+import { filterWork, parseWorkFilters, sortWork, workSources } from "@/lib/work-filters";
 
 export const metadata: Metadata = { title: "کارهای من" };
 
-const FILTERS = [
+const TABS = [
   { value: "active", label: "باقی‌مانده" },
   { value: "done", label: "تکمیل‌شده" },
   { value: "all", label: "همه" },
 ] as const;
-type Filter = (typeof FILTERS)[number]["value"];
+type Tab = (typeof TABS)[number]["value"];
 
-const DUE_STYLE: Record<DueState, string> = {
-  overdue: "text-danger",
-  soon: "text-danger font-medium",
-  upcoming: "text-muted",
-  none: "text-muted",
-};
+type SearchParams = Record<string, string | string[] | undefined>;
 
 export default function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   return (
@@ -60,10 +54,17 @@ async function Greeting() {
   );
 }
 
-async function MyWork({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const { show } = await searchParams;
-  const filter: Filter = FILTERS.some((f) => f.value === show) ? (show as Filter) : "active";
-  const items = await getMyWork();
+/** Current query as plain strings, so links and the filter bar can keep it. */
+function plainParams(params: SearchParams) {
+  return Object.fromEntries(Object.entries(params).filter((e): e is [string, string] => typeof e[1] === "string"));
+}
+
+async function MyWork({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
+  const tab: Tab = TABS.some((t) => t.value === params.show) ? (params.show as Tab) : "active";
+  const filters = parseWorkFilters(params);
+  const all = await getMyWork();
+  const items = sortWork(filterWork(all, filters), filters.sort);
 
   const remaining = items.filter((i) => i.status !== "done");
   const counts = {
@@ -72,7 +73,17 @@ async function MyWork({ searchParams }: { searchParams: Promise<Record<string, s
     inProgress: remaining.filter((i) => i.status === "in_progress").length,
     done: items.length - remaining.length,
   };
-  const visible = filter === "all" ? items : filter === "done" ? items.filter((i) => i.status === "done") : remaining;
+  const visible = tab === "all" ? items : tab === "done" ? items.filter((i) => i.status === "done") : remaining;
+  const query = plainParams(params);
+  const isFiltered = filters.source !== "all" || filters.priority !== "all";
+
+  function tabHref(value: Tab) {
+    const next = new URLSearchParams(query);
+    if (value === "active") next.delete("show");
+    else next.set("show", value);
+    const qs = next.toString();
+    return qs ? `/dashboard?${qs}` : "/dashboard";
+  }
 
   return (
     <>
@@ -86,23 +97,27 @@ async function MyWork({ searchParams }: { searchParams: Promise<Record<string, s
       <section className="rounded-2xl border border-border bg-surface p-6">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <h2 className="font-bold">کارهای من</h2>
-          <nav className="flex rounded-lg bg-background p-0.5 text-sm" aria-label="فیلتر">
-            {FILTERS.map((f) => (
+          <nav className="flex rounded-lg bg-background p-0.5 text-sm" aria-label="وضعیت">
+            {TABS.map((t) => (
               <Link
-                key={f.value}
-                href={f.value === "active" ? "/dashboard" : `/dashboard?show=${f.value}`}
-                aria-current={filter === f.value ? "page" : undefined}
+                key={t.value}
+                href={tabHref(t.value)}
+                aria-current={tab === t.value ? "page" : undefined}
                 className={`rounded-md px-3 py-1 ${
-                  filter === f.value ? "bg-surface font-medium shadow-sm" : "text-muted hover:text-foreground"
+                  tab === t.value ? "bg-surface font-medium shadow-sm" : "text-muted hover:text-foreground"
                 }`}
               >
-                {f.label}
+                {t.label}
               </Link>
             ))}
           </nav>
           <Link href="/tasks/new" className={`ms-auto ${buttonStyles.primary}`}>
             + کار شخصی
           </Link>
+        </div>
+
+        <div className="mb-4">
+          <WorkFilterBar filters={filters} sources={workSources(all)} params={query} showSort />
         </div>
 
         {visible.length ? (
@@ -112,7 +127,7 @@ async function MyWork({ searchParams }: { searchParams: Promise<Record<string, s
             ))}
           </ul>
         ) : (
-          <EmptyState filter={filter} hasAny={items.length > 0} />
+          <EmptyState tab={tab} hasAny={all.length > 0} isFiltered={isFiltered} />
         )}
       </section>
     </>
@@ -128,65 +143,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "da
   );
 }
 
-function WorkRow({ item }: { item: WorkItem }) {
-  const done = item.status === "done";
-  const priority = PRIORITY_LABEL[item.priority];
-
-  return (
-    <li className={`rounded-xl border border-border p-4 ${done ? "bg-background/60" : ""}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className={`font-bold ${done ? "text-muted line-through" : ""}`}>{item.title}</h3>
-            <span className={`rounded-full px-2 py-0.5 text-xs ${priority.className}`}>{priority.text}</span>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            {item.kind === "assignment" ? (
-              <Link href={`/classes/${item.classId}#assignment-${item.id}`} className="text-primary hover:underline">
-                {item.courseName}
-              </Link>
-            ) : (
-              <span className="text-muted">کار شخصی</span>
-            )}
-            {item.dueAt ? <span className="text-muted">مهلت: {formatDeadline(item.dueAt)}</span> : null}
-            {done ? null : <span className={DUE_STYLE[item.due.state]}>{item.due.text}</span>}
-          </div>
-        </div>
-        {item.kind === "task" ? (
-          <div className="flex gap-2">
-            <Link
-              href={`/tasks/${item.id}/edit`}
-              className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-background"
-            >
-              ویرایش
-            </Link>
-            <ActionButton
-              action={deleteTask.bind(null, item.id)}
-              tone="danger"
-              pendingText="…"
-              confirmText={`کار «${item.title}» حذف شود؟`}
-            >
-              حذف
-            </ActionButton>
-          </div>
-        ) : null}
-      </div>
-
-      {item.description && !done ? (
-        <p className="mt-2 line-clamp-2 text-sm leading-7 whitespace-pre-line text-muted">{item.description}</p>
-      ) : null}
-
-      <div className="mt-3">
-        <StatusControl
-          status={item.status}
-          action={item.kind === "task" ? setTaskStatus.bind(null, item.id) : setAssignmentStatus.bind(null, item.id)}
-        />
-      </div>
-    </li>
-  );
-}
-
-function EmptyState({ filter, hasAny }: { filter: Filter; hasAny: boolean }) {
+function EmptyState({ tab, hasAny, isFiltered }: { tab: Tab; hasAny: boolean; isFiltered: boolean }) {
   if (!hasAny) {
     return (
       <div className="rounded-xl bg-background p-8 text-center text-sm text-muted">
@@ -203,7 +160,11 @@ function EmptyState({ filter, hasAny }: { filter: Filter; hasAny: boolean }) {
   }
   return (
     <p className="rounded-xl bg-background p-8 text-center text-sm text-muted">
-      {filter === "done" ? "هنوز چیزی را تکمیل نکرده‌ای." : "همه‌چیز انجام شده! 🎉"}
+      {isFiltered
+        ? "با این فیلترها چیزی پیدا نشد."
+        : tab === "done"
+          ? "هنوز چیزی را تکمیل نکرده‌ای."
+          : "همه‌چیز انجام شده! 🎉"}
     </p>
   );
 }

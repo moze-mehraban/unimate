@@ -2,12 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession, withSessionCookies } from "@/lib/supabase/proxy";
 
 // Pages that need a signed-in user.
-const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/reset-password", "/classes", "/join", "/tasks"];
+const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/reset-password", "/classes", "/join", "/tasks", "/calendar"];
 // Pages a signed-in user has no reason to see.
 const GUEST_ONLY = ["/", "/login", "/signup", "/forgot-password"];
 
 export async function proxy(request: NextRequest) {
-  const { response, userId } = await updateSession(request);
+  const session = await updateSession(request);
+  const { userId } = session;
   const { pathname, search } = request.nextUrl;
 
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -17,17 +18,19 @@ export async function proxy(request: NextRequest) {
     url.pathname = "/login";
     url.search = "";
     url.searchParams.set("next", pathname + search);
-    return withSessionCookies(response, NextResponse.redirect(url));
+    return withSessionCookies(session.response, NextResponse.redirect(url));
   }
 
-  if (userId && GUEST_ONLY.includes(pathname)) {
+  // Only bounce to the dashboard if the session is really alive; otherwise a
+  // revoked session loops: page → /login (no user) → /dashboard (valid JWT) → …
+  if (userId && GUEST_ONLY.includes(pathname) && (await session.confirmSession())) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     url.search = "";
-    return withSessionCookies(response, NextResponse.redirect(url));
+    return withSessionCookies(session.response, NextResponse.redirect(url));
   }
 
-  return response;
+  return session.response;
 }
 
 export const config = {

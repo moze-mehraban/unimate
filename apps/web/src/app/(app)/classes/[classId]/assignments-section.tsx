@@ -4,18 +4,11 @@ import { StatusControl } from "@/components/status-control";
 import { ActionButton, buttonStyles } from "@/components/ui";
 import { getClassAssignments, type ClassAssignment } from "@/lib/data/assignments";
 import type { ClassDetail } from "@/lib/data/classes";
-import { formatDateTime, formatDeadline, type DueState } from "@/lib/format";
-import { PRIORITY_LABEL } from "@/lib/labels";
+import { formatDateTime, formatDeadline } from "@/lib/format";
+import { DUE_STYLE, PRIORITY_LABEL } from "@/lib/labels";
 import { deleteAssignment, reportAssignment, setAssignmentStatus } from "./assignments/actions";
 import { ReportForm } from "./report-form";
 import { CountBadge, Section } from "./section";
-
-const DUE_STYLE: Record<DueState, string> = {
-  overdue: "text-danger",
-  soon: "text-danger font-medium",
-  upcoming: "text-muted",
-  none: "text-muted",
-};
 
 export async function AssignmentsSection({ cls }: { cls: ClassDetail }) {
   const assignments = await getClassAssignments(cls);

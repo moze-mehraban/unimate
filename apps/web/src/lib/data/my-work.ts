@@ -3,6 +3,7 @@ import type { PersonalTask, Priority, TaskStatus } from "@unimate/shared";
 import { requireUser } from "../auth";
 import { describeDue, type DueState } from "../format";
 import { createClient } from "../supabase/server";
+import { sortWork } from "../work-filters";
 
 type WorkItemBase = {
   id: string;
@@ -18,18 +19,6 @@ type WorkItemBase = {
 export type WorkItem =
   | (WorkItemBase & { kind: "assignment"; classId: string; courseName: string })
   | (WorkItemBase & { kind: "task" });
-
-const PRIORITY_RANK: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
-
-/** Nearest deadline first, undated last; ties broken by priority. */
-function compareWork(a: WorkItem, b: WorkItem) {
-  if (a.dueAt !== b.dueAt) {
-    if (!a.dueAt) return 1;
-    if (!b.dueAt) return -1;
-    return a.dueAt < b.dueAt ? -1 : 1;
-  }
-  return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
-}
 
 /** Assignments from all my classes (with my personal status) plus my personal tasks. */
 export async function getMyWork(): Promise<WorkItem[]> {
@@ -69,7 +58,7 @@ export async function getMyWork(): Promise<WorkItem[]> {
       status: t.status,
     })),
   ];
-  return items.sort(compareWork);
+  return sortWork(items, "due");
 }
 
 export async function getPersonalTask(taskId: string): Promise<PersonalTask | null> {
