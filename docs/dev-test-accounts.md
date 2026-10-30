@@ -5,3 +5,4 @@ Only for the local Supabase stack (`npx supabase start`). `npx supabase db reset
 | Name | Email | Password |
 |------|-------|----------|
 | سارا احمدی | sara.test@unimate.test | Unimate-test-2027 |
+| رضا کریمی | reza.test@unimate.test | Unimate-test-2027 |

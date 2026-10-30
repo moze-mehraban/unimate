@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useActionState } from "react";
 import { Alert, Field, SubmitButton } from "@/components/ui";
-import { signIn, type FormState } from "../actions";
+import type { FormState } from "@/lib/forms";
+import { signIn } from "../actions";
 import { GoogleButton, OrDivider } from "../google-button";
 
 const URL_ERRORS: Record<string, string> = {
@@ -44,6 +45,13 @@ export function LoginForm() {
         </div>
         <SubmitButton pendingText="در حال ورود…">ورود</SubmitButton>
       </form>
+
+      <p className="text-center text-sm text-muted">
+        حساب نداری؟{" "}
+        <Link href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"} className="font-medium text-primary hover:underline">
+          ثبت‌نام کن
+        </Link>
+      </p>
     </div>
   );
 }

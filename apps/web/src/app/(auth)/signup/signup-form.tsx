@@ -1,12 +1,16 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useActionState } from "react";
 import { PASSWORD_MIN_LENGTH, PROFILE_LIMITS } from "@unimate/shared";
 import { Alert, Field, SubmitButton } from "@/components/ui";
-import { signUp, type FormState } from "../actions";
+import type { FormState } from "@/lib/forms";
+import { signUp } from "../actions";
 import { GoogleButton, OrDivider } from "../google-button";
 
 export function SignupForm() {
+  const next = useSearchParams().get("next") ?? "";
   const [state, action] = useActionState<FormState, FormData>(signUp, {});
 
   if (state.success) return <Alert kind="success">{state.success}</Alert>;
@@ -15,10 +19,11 @@ export function SignupForm() {
     <div className="flex flex-col gap-4">
       {state.error ? <Alert kind="error">{state.error}</Alert> : null}
 
-      <GoogleButton />
+      <GoogleButton next={next} />
       <OrDivider />
 
       <form action={action} className="flex flex-col gap-4" noValidate>
+        <input type="hidden" name="next" value={next} />
         <Field
           label="نام و نام خانوادگی"
           name="full_name"
@@ -58,6 +63,13 @@ export function SignupForm() {
         />
         <SubmitButton pendingText="در حال ساخت حساب…">ثبت‌نام</SubmitButton>
       </form>
+
+      <p className="text-center text-sm text-muted">
+        حساب داری؟{" "}
+        <Link href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"} className="font-medium text-primary hover:underline">
+          وارد شو
+        </Link>
+      </p>
     </div>
   );
 }

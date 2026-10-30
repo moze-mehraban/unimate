@@ -60,6 +60,77 @@ export function Field({
   );
 }
 
+export function SelectField({
+  label,
+  error,
+  hint,
+  children,
+  ...selectProps
+}: ComponentProps<"select"> & { label: string; error?: string; hint?: string }) {
+  const id = selectProps.id ?? selectProps.name;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      <select
+        id={id}
+        aria-invalid={error ? true : undefined}
+        className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+        {...selectProps}
+      >
+        {children}
+      </select>
+      {error ? <p className="text-xs text-danger">{error}</p> : hint ? <p className="text-xs text-muted">{hint}</p> : null}
+    </div>
+  );
+}
+
+/**
+ * A one-button form for a bound server action, with an optional confirm()
+ * prompt for destructive actions.
+ */
+export function ActionButton({
+  action,
+  children,
+  confirmText,
+  pendingText,
+  tone = "neutral",
+}: {
+  action: () => Promise<void>;
+  children: ReactNode;
+  confirmText?: string;
+  pendingText?: string;
+  tone?: "neutral" | "danger" | "primary";
+}) {
+  const tones = {
+    neutral: "border border-border text-foreground hover:bg-background",
+    danger: "border border-border text-danger hover:bg-danger-soft",
+    primary: "bg-primary text-primary-foreground hover:bg-primary-hover",
+  };
+  return (
+    <form
+      action={action}
+      onSubmit={(e) => {
+        if (confirmText && !window.confirm(confirmText)) e.preventDefault();
+      }}
+    >
+      <PendingButton className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60 ${tones[tone]}`} pendingText={pendingText}>
+        {children}
+      </PendingButton>
+    </form>
+  );
+}
+
+function PendingButton({ children, pendingText, className }: { children: ReactNode; pendingText?: string; className: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending} className={className}>
+      {pending ? (pendingText ?? "…") : children}
+    </button>
+  );
+}
+
 export function Alert({ kind, children }: { kind: "error" | "success"; children: ReactNode }) {
   const styles = kind === "error" ? "bg-danger-soft text-danger" : "bg-success-soft text-success";
   return (
