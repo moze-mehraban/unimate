@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { getEditableAssignment } from "@/lib/data/assignments";
 import { toTehranInputValue } from "@/lib/format";
 import { updateAssignment } from "../../actions";
-import { AssignmentForm } from "../../assignment-form";
+import { TaskForm } from "@/components/task-form";
 
 export const metadata: Metadata = { title: "ویرایش تکلیف" };
 
@@ -31,7 +31,9 @@ async function EditAssignment({ params }: { params: Promise<{ classId: string; a
         <h1 className="mt-2 text-2xl font-bold">ویرایش تکلیف</h1>
       </div>
       <section className="rounded-2xl border border-border bg-surface p-6">
-        <AssignmentForm
+        <TaskForm
+          titlePlaceholder="مثلاً تمرین سری ۳ — نرمال‌سازی"
+          descriptionPlaceholder="صورت تمرین، نحوهٔ تحویل، منابع…"
           action={updateAssignment.bind(null, cls.id, assignment.id)}
           initial={{
             title: assignment.title,

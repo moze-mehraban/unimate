@@ -1,6 +1,6 @@
 import "server-only";
 import { notFound } from "next/navigation";
-import type { Priority, ReportStatus } from "@unimate/shared";
+import type { Priority, ReportStatus, TaskStatus } from "@unimate/shared";
 import { requireUser } from "../auth";
 import { describeDue, type DueState } from "../format";
 import { isUuid } from "../forms";
@@ -23,12 +23,14 @@ export type ClassAssignment = {
   canEdit: boolean;
   /** I already have an open report on it. */
   reportedByMe: boolean;
+  /** My personal progress (no row = todo). */
+  myStatus: TaskStatus;
 };
 
 export async function getClassAssignments(cls: ClassDetail): Promise<ClassAssignment[]> {
   const user = await requireUser();
   const supabase = await createClient();
-  const [{ data, error }, { data: myReports }] = await Promise.all([
+  const [{ data, error }, { data: myReports }, { data: myStatuses }] = await Promise.all([
     supabase
       .from("assignments")
       .select("id, title, description, due_at, priority, created_at, updated_at, created_by, profiles!assignments_created_by_fkey(full_name)")
@@ -37,10 +39,13 @@ export async function getClassAssignments(cls: ClassDetail): Promise<ClassAssign
       .order("created_at", { ascending: false }),
     // RLS: members only see their own reports.
     supabase.from("assignment_reports").select("assignment_id").eq("reporter_id", user.id).eq("status", "open"),
+    // RLS: status rows are strictly personal.
+    supabase.from("assignment_status").select("assignment_id, status").eq("user_id", user.id),
   ]);
   if (error) throw error;
 
   const reported = new Set((myReports ?? []).map((r) => r.assignment_id));
+  const statusById = new Map((myStatuses ?? []).map((s) => [s.assignment_id, s.status]));
   const now = Date.now();
   return data.map((a) => ({
     id: a.id,
@@ -55,6 +60,7 @@ export async function getClassAssignments(cls: ClassDetail): Promise<ClassAssign
     creatorName: a.profiles?.full_name ?? "",
     canEdit: cls.isOwner || a.created_by === user.id,
     reportedByMe: reported.has(a.id),
+    myStatus: statusById.get(a.id) ?? "todo",
   }));
 }
 

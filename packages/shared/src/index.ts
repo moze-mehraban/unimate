@@ -15,6 +15,7 @@ export type Assignment = Tables<"assignments">;
 export type Priority = Enums<"priority_level">;
 export type TaskStatus = Enums<"task_status">;
 export type ReportStatus = Enums<"report_status">;
+export type PersonalTask = Tables<"personal_tasks">;
 
 // Validation shared by web and mobile. Limits mirror the DB CHECK constraints.
 export const PROFILE_LIMITS = { fullName: 120, university: 160 } as const;
@@ -24,6 +25,7 @@ export const INVITE_MAX_USES_LIMIT = 500;
 export const ASSIGNMENT_LIMITS = { title: 200, description: 5000 } as const;
 export const REPORT_REASON_LIMIT = 1000;
 export const PRIORITIES: readonly Priority[] = ["high", "medium", "low"];
+export const TASK_STATUSES: readonly TaskStatus[] = ["todo", "in_progress", "done"];
 export const PASSWORD_MIN_LENGTH = 8;
 
 export function isValidEmail(email: string): boolean {

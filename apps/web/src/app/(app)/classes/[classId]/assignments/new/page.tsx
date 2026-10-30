@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getClassOrNotFound } from "@/lib/data/classes";
 import { createAssignment } from "../actions";
-import { AssignmentForm } from "../assignment-form";
+import { TaskForm } from "@/components/task-form";
 
 export const metadata: Metadata = { title: "تکلیف جدید" };
 
@@ -31,7 +31,12 @@ async function NewAssignment({ params }: { params: Promise<{ classId: string }> 
         <p className="mt-1 text-sm text-muted">همهٔ اعضای کلاس این تکلیف را فوراً می‌بینند و اعلان می‌گیرند.</p>
       </div>
       <section className="rounded-2xl border border-border bg-surface p-6">
-        <AssignmentForm action={createAssignment.bind(null, cls.id)} submitLabel="افزودن تکلیف" />
+        <TaskForm
+          action={createAssignment.bind(null, cls.id)}
+          submitLabel="افزودن تکلیف"
+          titlePlaceholder="مثلاً تمرین سری ۳ — نرمال‌سازی"
+          descriptionPlaceholder="صورت تمرین، نحوهٔ تحویل، منابع…"
+        />
       </section>
     </>
   );

@@ -4,7 +4,7 @@ import { Logo } from "@/components/logo";
 import { UserMenu } from "./user-menu";
 
 const NAV = [
-  { href: "/dashboard", label: "داشبورد" },
+  { href: "/dashboard", label: "کارهای من" },
   { href: "/classes", label: "کلاس‌ها" },
   { href: "/profile", label: "پروفایل" },
 ] as const;

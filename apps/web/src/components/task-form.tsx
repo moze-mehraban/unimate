@@ -9,14 +9,19 @@ import { PRIORITY_LABEL } from "@/lib/labels";
 
 type Values = { title: string; description: string; due_local: string; priority: string };
 
-export function AssignmentForm({
+/** Shared by class assignments and personal tasks (same fields and limits). */
+export function TaskForm({
   action,
   initial,
   submitLabel,
+  titlePlaceholder,
+  descriptionPlaceholder,
 }: {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   initial?: Values;
   submitLabel: string;
+  titlePlaceholder: string;
+  descriptionPlaceholder: string;
 }) {
   const [state, formAction] = useActionState(action, {});
   const v = state.values ?? initial;
@@ -33,7 +38,7 @@ export function AssignmentForm({
         maxLength={ASSIGNMENT_LIMITS.title}
         defaultValue={v?.title}
         error={state.fieldErrors?.title}
-        placeholder="مثلاً تمرین سری ۳ — نرمال‌سازی"
+        placeholder={titlePlaceholder}
       />
 
       <div className="flex flex-col gap-1.5">
@@ -46,7 +51,7 @@ export function AssignmentForm({
           rows={5}
           maxLength={ASSIGNMENT_LIMITS.description}
           defaultValue={v?.description}
-          placeholder="صورت تمرین، نحوهٔ تحویل، منابع…"
+          placeholder={descriptionPlaceholder}
           className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm outline-none placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
         />
         {state.fieldErrors?.description ? <p className="text-xs text-danger">{state.fieldErrors.description}</p> : null}

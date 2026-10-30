@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { AssignmentsRealtime } from "@/components/assignments-realtime";
+import { StatusControl } from "@/components/status-control";
 import { ActionButton, buttonStyles } from "@/components/ui";
 import { getClassAssignments, type ClassAssignment } from "@/lib/data/assignments";
 import type { ClassDetail } from "@/lib/data/classes";
 import { formatDateTime, formatDeadline, type DueState } from "@/lib/format";
 import { PRIORITY_LABEL } from "@/lib/labels";
-import { deleteAssignment, reportAssignment } from "./assignments/actions";
+import { deleteAssignment, reportAssignment, setAssignmentStatus } from "./assignments/actions";
 import { ReportForm } from "./report-form";
 import { CountBadge, Section } from "./section";
 
@@ -54,16 +55,19 @@ function AssignmentCard({ classId, assignment: a }: { classId: string; assignmen
   const priority = PRIORITY_LABEL[a.priority];
 
   return (
-    <li id={`assignment-${a.id}`} className="rounded-xl border border-border p-4">
+    <li
+      id={`assignment-${a.id}`}
+      className={`rounded-xl border border-border p-4 ${a.myStatus === "done" ? "bg-background/60" : ""}`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-bold">{a.title}</h3>
+            <h3 className={`font-bold ${a.myStatus === "done" ? "text-muted line-through" : ""}`}>{a.title}</h3>
             <span className={`rounded-full px-2 py-0.5 text-xs ${priority.className}`}>{priority.text}</span>
           </div>
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
             {a.dueAt ? <span className="text-muted">مهلت: {formatDeadline(a.dueAt)}</span> : null}
-            <span className={DUE_STYLE[due.state]}>{due.text}</span>
+            {a.myStatus === "done" ? null : <span className={DUE_STYLE[due.state]}>{due.text}</span>}
           </div>
         </div>
         {a.canEdit ? (
@@ -87,6 +91,10 @@ function AssignmentCard({ classId, assignment: a }: { classId: string; assignmen
       </div>
 
       {a.description ? <p className="mt-3 text-sm leading-7 whitespace-pre-line">{a.description}</p> : null}
+
+      <div className="mt-3">
+        <StatusControl status={a.myStatus} action={setAssignmentStatus.bind(null, a.id)} />
+      </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted">
         <span>
