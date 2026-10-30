@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
+import { ChevronBackIcon, ChevronForwardIcon } from "@/components/icons";
 import { WorkFilterBar } from "@/components/work-filter-bar";
 import { WorkRow } from "@/components/work-row";
 import {
@@ -83,12 +84,11 @@ async function CalendarView({ searchParams }: { searchParams: Promise<SearchPara
     <section className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4 sm:p-6">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
-          {/* RTL: "previous" points right. */}
           <NavButton href={href({ d: prev })} label={view === "month" ? "ماه قبل" : "هفتهٔ قبل"}>
-            ›
+            <ChevronBackIcon />
           </NavButton>
           <NavButton href={href({ d: next })} label={view === "month" ? "ماه بعد" : "هفتهٔ بعد"}>
-            ‹
+            <ChevronForwardIcon />
           </NavButton>
         </div>
         <h2 className="text-lg font-bold">{title}</h2>
@@ -144,14 +144,14 @@ async function CalendarView({ searchParams }: { searchParams: Promise<SearchPara
   );
 }
 
-function NavButton({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
+function NavButton({ href, label, children }: { href: string; label: string; children: ReactNode }) {
   return (
     <Link
       href={href}
       aria-label={label}
       title={label}
       scroll={false}
-      className="grid size-8 place-items-center rounded-lg border border-border text-lg leading-none hover:bg-background"
+      className="grid size-8 place-items-center rounded-lg border border-border hover:bg-background"
     >
       {children}
     </Link>

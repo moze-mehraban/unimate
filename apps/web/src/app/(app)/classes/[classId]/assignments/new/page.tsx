@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
+import { BackLink } from "@/components/icons";
+import { TaskForm } from "@/components/task-form";
 import { getClassOrNotFound } from "@/lib/data/classes";
 import { createAssignment } from "../actions";
-import { TaskForm } from "@/components/task-form";
 
 export const metadata: Metadata = { title: "تکلیف جدید" };
 
@@ -24,9 +24,7 @@ async function NewAssignment({ params }: { params: Promise<{ classId: string }> 
   return (
     <>
       <div>
-        <Link href={`/classes/${cls.id}`} className="text-sm text-muted hover:text-foreground">
-          → {cls.course_name}
-        </Link>
+        <BackLink href={`/classes/${cls.id}`}>{cls.course_name}</BackLink>
         <h1 className="mt-2 text-2xl font-bold">تکلیف جدید</h1>
         <p className="mt-1 text-sm text-muted">همهٔ اعضای کلاس این تکلیف را فوراً می‌بینند و اعلان می‌گیرند.</p>
       </div>

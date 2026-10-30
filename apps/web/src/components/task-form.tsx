@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { ASSIGNMENT_LIMITS, PRIORITIES } from "@unimate/shared";
+import { JalaliDateTimeInput } from "@/components/jalali-date-time-input";
 import { Alert, Field, SelectField, SubmitButton } from "@/components/ui";
 import { formatDeadline, fromTehranInputValue } from "@/lib/format";
 import type { FormState } from "@/lib/forms";
@@ -57,30 +58,29 @@ export function TaskForm({
         {state.fieldErrors?.description ? <p className="text-xs text-danger">{state.fieldErrors.description}</p> : null}
       </div>
 
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="due_local" className="text-sm font-medium">
+          مهلت تحویل
+        </label>
+        <JalaliDateTimeInput
+          id="due_local"
+          name="due_local"
+          defaultValue={dueLocal}
+          invalid={Boolean(state.fieldErrors?.due_local)}
+          onChange={setDueLocal}
+        />
+        {state.fieldErrors?.due_local ? (
+          <p className="text-xs text-danger">{state.fieldErrors.due_local}</p>
+        ) : (
+          <p className="text-xs text-muted">
+            {duePreview && !Number.isNaN(duePreview.getTime())
+              ? `${formatDeadline(duePreview)} (به وقت تهران)`
+              : "اختیاری — به وقت تهران"}
+          </p>
+        )}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="due_local" className="text-sm font-medium">
-            مهلت تحویل
-          </label>
-          <input
-            id="due_local"
-            name="due_local"
-            type="datetime-local"
-            dir="ltr"
-            value={dueLocal}
-            onChange={(e) => setDueLocal(e.target.value)}
-            className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-          />
-          {state.fieldErrors?.due_local ? (
-            <p className="text-xs text-danger">{state.fieldErrors.due_local}</p>
-          ) : (
-            <p className="text-xs text-muted">
-              {duePreview && !Number.isNaN(duePreview.getTime())
-                ? `${formatDeadline(duePreview)} (به وقت تهران)`
-                : "اختیاری — به وقت تهران"}
-            </p>
-          )}
-        </div>
         <SelectField label="اولویت" name="priority" defaultValue={v?.priority ?? "medium"} error={state.fieldErrors?.priority}>
           {PRIORITIES.map((p) => (
             <option key={p} value={p}>

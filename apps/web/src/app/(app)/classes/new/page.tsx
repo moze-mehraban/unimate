@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/icons";
 import { createClass } from "../actions";
 import { ClassForm } from "../class-form";
 
@@ -9,9 +9,7 @@ export default function NewClassPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <div>
-        <Link href="/classes" className="text-sm text-muted hover:text-foreground">
-          → کلاس‌ها
-        </Link>
+        <BackLink href="/classes">کلاس‌ها</BackLink>
         <h1 className="mt-2 text-2xl font-bold">ساخت کلاس جدید</h1>
         <p className="mt-1 text-sm text-muted">بعد از ساخت کلاس می‌توانی با لینک دعوت، هم‌کلاسی‌هایت را اضافه کنی.</p>
       </div>
