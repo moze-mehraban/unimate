@@ -5,6 +5,8 @@ import { useEffect, type ComponentProps } from "react";
 import type { ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { takePendingInvite } from "@/lib/pending-invite";
+import { NotificationsProvider, useNotifications } from "@/providers/notifications";
+import { toFaDigits } from "@unimate/shared";
 import { FONT, useColors } from "@/lib/theme";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
@@ -17,7 +19,16 @@ function icon(name: IconName, focusedName: IconName) {
 }
 
 export default function TabsLayout() {
+  return (
+    <NotificationsProvider>
+      <TabsNavigator />
+    </NotificationsProvider>
+  );
+}
+
+function TabsNavigator() {
   const c = useColors();
+  const { unread } = useNotifications();
   const insets = useSafeAreaInsets();
 
   // Back to the invite that sent a signed-out user to sign in. This layout mounts
@@ -54,7 +65,12 @@ export default function TabsLayout() {
       <Tabs.Screen name="classes" options={{ title: "کلاس‌ها", tabBarIcon: icon("school-outline", "school") }} />
       <Tabs.Screen
         name="notifications"
-        options={{ title: "اعلان‌ها", tabBarIcon: icon("notifications-outline", "notifications") }}
+        options={{
+          title: "اعلان‌ها",
+          tabBarIcon: icon("notifications-outline", "notifications"),
+          tabBarBadge: unread ? (unread > 99 ? "۹۹+" : toFaDigits(unread)) : undefined,
+          tabBarBadgeStyle: { backgroundColor: c.danger, color: c.primaryForeground, fontFamily: FONT.bold, fontSize: 11 },
+        }}
       />
       <Tabs.Screen name="profile" options={{ title: "پروفایل", tabBarIcon: icon("person-outline", "person") }} />
     </Tabs>

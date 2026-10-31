@@ -41,3 +41,4 @@ export function parseInviteToken(input: string): string | null {
   const match = /(?:^|\/join\/)([0-9a-f]{36})(?:[/?#]|$)/i.exec(input.trim());
   return match ? match[1].toLowerCase() : null;
 }
+export { describeNotification, type NotificationType } from "./notifications";
