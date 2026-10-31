@@ -12,6 +12,7 @@ export async function ReportsSection({ classId }: { classId: string }) {
 
   return (
     <Section
+      id="reports"
       title="گزارش‌های تکالیف"
       badge={<CountBadge count={reports.length} />}
       description="اعضا این تکالیف را نادرست گزارش کرده‌اند. در صورت نیاز تکلیف را اصلاح کن و گزارش را ببند."

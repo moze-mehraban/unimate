@@ -8,7 +8,7 @@ export async function RequestsSection({ classId }: { classId: string }) {
   const requests = await getPendingRequests(classId);
 
   return (
-    <Section title="درخواست‌های عضویت" badge={requests.length ? <CountBadge count={requests.length} /> : null}>
+    <Section id="requests" title="درخواست‌های عضویت" badge={requests.length ? <CountBadge count={requests.length} /> : null}>
       {requests.length ? (
         <ul className="divide-y divide-border">
           {requests.map((r) => {

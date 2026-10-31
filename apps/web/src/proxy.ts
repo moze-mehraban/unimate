@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession, withSessionCookies } from "@/lib/supabase/proxy";
 
 // Pages that need a signed-in user.
-const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/reset-password", "/classes", "/join", "/tasks", "/calendar"];
+const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/reset-password", "/classes", "/join", "/tasks", "/calendar", "/notifications"];
 // Pages a signed-in user has no reason to see.
 const GUEST_ONLY = ["/", "/login", "/signup", "/forgot-password"];
 

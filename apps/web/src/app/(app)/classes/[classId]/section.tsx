@@ -1,12 +1,15 @@
 import type { ReactNode } from "react";
 
 export function Section({
+  id,
   title,
   description,
   badge,
   action,
   children,
 }: {
+  /** Anchor for deep links (e.g. from notifications). */
+  id?: string;
   title: string;
   description?: string;
   badge?: ReactNode;
@@ -15,7 +18,7 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-6">
+    <section id={id} className="scroll-mt-6 rounded-2xl border border-border bg-surface p-6">
       <div className="mb-4 flex items-center gap-2">
         <h2 className="font-bold">{title}</h2>
         {badge}
