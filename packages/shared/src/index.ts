@@ -31,3 +31,6 @@ export const PASSWORD_MIN_LENGTH = 8;
 export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
+
+export { authErrorMessage, GENERIC_ERROR } from "./auth-errors";
+export * from "./jalali";

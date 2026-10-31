@@ -24,6 +24,16 @@ npm run dev -w web
 | http://127.0.0.1:54323 | Supabase Studio |
 | http://127.0.0.1:54324 | Mailpit (ایمیل‌های تأیید و بازیابی رمز در محیط محلی) |
 
+## اپ موبایل (Expo)
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env   # مقادیر را پر کنید
+npm run start -w mobile                         # کد QR را با Expo Go اسکن کنید
+npm run web -w mobile                           # یا نسخهٔ وب برای تست سریع
+```
+
+روی گوشی واقعی `127.0.0.1` خودِ گوشی است؛ در `.env` آدرس IP کامپیوتر در شبکه (مثلاً `http://192.168.1.10:54321`) یا پروژهٔ ابری Supabase را بگذارید.
+
 ## ورود با Google
 
 1. در Google Cloud Console یک OAuth Client (نوع Web) بسازید.
