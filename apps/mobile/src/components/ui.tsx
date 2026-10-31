@@ -11,6 +11,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
+import { toFaDigits } from "@unimate/shared";
 import { FONT, useColors } from "@/lib/theme";
 
 type Weight = keyof typeof FONT;
@@ -196,5 +197,77 @@ export function Loading() {
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32 }}>
       <ActivityIndicator color={c.primary} />
     </View>
+  );
+}
+
+/** A titled card on the class screen, with an optional count badge and action. */
+export function Section({
+  title,
+  count,
+  action,
+  children,
+}: {
+  title: string;
+  count?: number;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  const c = useColors();
+  return (
+    <Card style={{ gap: 12 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <AppText weight="bold">{title}</AppText>
+        {count ? (
+          <View style={{ backgroundColor: `${c.primary}1a`, borderRadius: 999, paddingHorizontal: 8 }}>
+            <AppText size={12} tone="primary">
+              {toFaDigits(count)}
+            </AppText>
+          </View>
+        ) : null}
+        {action ? (
+          <>
+            <View style={{ flex: 1 }} />
+            {action}
+          </>
+        ) : null}
+      </View>
+      {children}
+    </Card>
+  );
+}
+
+/** Small text button for row actions (approve, revoke, remove…). */
+export function SmallButton({
+  children,
+  onPress,
+  tone = "neutral",
+  disabled,
+}: {
+  children: string;
+  onPress: () => void;
+  tone?: "neutral" | "primary" | "danger";
+  disabled?: boolean;
+}) {
+  const c = useColors();
+  const fg = tone === "primary" ? c.primaryForeground : tone === "danger" ? c.danger : c.foreground;
+  return (
+    <Pressable
+      role="button"
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => ({
+        backgroundColor: tone === "primary" ? c.primary : "transparent",
+        borderColor: tone === "primary" ? c.primary : c.border,
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        opacity: disabled ? 0.5 : pressed ? 0.8 : 1,
+      })}
+    >
+      <AppText size={13} weight="medium" style={{ color: fg }}>
+        {children}
+      </AppText>
+    </Pressable>
   );
 }

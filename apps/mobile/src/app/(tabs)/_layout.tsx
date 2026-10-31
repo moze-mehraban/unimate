@@ -1,7 +1,10 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
-import type { ComponentProps } from "react";
+import { useEffect, type ComponentProps } from "react";
 import type { ColorValue } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { takePendingInvite } from "@/lib/pending-invite";
 import { FONT, useColors } from "@/lib/theme";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
@@ -15,13 +18,29 @@ function icon(name: IconName, focusedName: IconName) {
 
 export default function TabsLayout() {
   const c = useColors();
+  const insets = useSafeAreaInsets();
+
+  // Back to the invite that sent a signed-out user to sign in. This layout mounts
+  // only after Stack.Protected has switched to the signed-in screens; pushing from
+  // the root layout raced that reset and landed on "/?token=…".
+  useEffect(() => {
+    const token = takePendingInvite();
+    if (token) router.push(`/join/${token}`);
+  }, []);
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: c.primary,
         tabBarInactiveTintColor: c.muted,
-        tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.border },
-        tabBarLabelStyle: { fontFamily: FONT.medium, fontSize: 11 },
+        // Vazirmatn needs more line height than the default bar leaves, or labels get clipped.
+        tabBarStyle: {
+          backgroundColor: c.surface,
+          borderTopColor: c.border,
+          height: 64 + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: insets.bottom + 6,
+        },
+        tabBarLabelStyle: { fontFamily: FONT.medium, fontSize: 11, lineHeight: 18 },
         headerStyle: { backgroundColor: c.surface },
         headerTintColor: c.foreground,
         headerTitleStyle: { fontFamily: FONT.bold },

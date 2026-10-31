@@ -1,8 +1,8 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, RefreshControl, View } from "react-native";
+import { FlatList, RefreshControl, View } from "react-native";
 import { toFaDigits, type TaskStatus } from "@unimate/shared";
+import { Fab } from "@/components/fab";
 import { AppText, Banner, Loading, Segmented } from "@/components/ui";
 import { WorkCard } from "@/components/work-card";
 import { notify } from "@/lib/dialogs";
@@ -122,30 +122,7 @@ export default function MyWorkScreen() {
         }
       />
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="کار شخصی جدید"
-        onPress={() => router.push("/tasks/new")}
-        style={({ pressed }) => ({
-          position: "absolute",
-          bottom: 20,
-          end: 20,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: c.primary,
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: pressed ? 0.85 : 1,
-          shadowColor: "#000",
-          shadowOpacity: 0.2,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: 4,
-        })}
-      >
-        <Ionicons name="add" size={28} color={c.primaryForeground} />
-      </Pressable>
+      <Fab label="کار شخصی جدید" onPress={() => router.push("/tasks/new")} />
     </View>
   );
 }

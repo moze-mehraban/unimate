@@ -23,15 +23,21 @@ export type TaskRow = { title: string; description: string; due_at: string | nul
 
 const DEFAULT_TIME = "23:59";
 
-/** Title, description, Jalali deadline + time, priority. Same fields and limits as the web form. */
+/** Title, description, Jalali deadline + time, priority. Shared by personal tasks and class assignments. */
 export function TaskForm({
   initial,
   submitLabel,
   onSubmit,
   onDelete,
+  titlePlaceholder = "مثلاً مرور فصل ۴ برای میان‌ترم",
+  descriptionPlaceholder = "جزئیات، یادداشت، لینک منابع…",
+  deleteLabel = "حذف کار",
 }: {
   initial?: TaskValues;
   submitLabel: string;
+  titlePlaceholder?: string;
+  descriptionPlaceholder?: string;
+  deleteLabel?: string;
   /** Returns an error message, or null on success. */
   onSubmit: (row: TaskRow) => Promise<string | null>;
   onDelete?: () => void;
@@ -75,7 +81,7 @@ export function TaskForm({
           onChangeText={setTitle}
           error={errors.title}
           maxLength={ASSIGNMENT_LIMITS.title}
-          placeholder="مثلاً مرور فصل ۴ برای میان‌ترم"
+          placeholder={titlePlaceholder}
         />
         <Field
           label="توضیحات"
@@ -83,7 +89,7 @@ export function TaskForm({
           onChangeText={setDescription}
           error={errors.description}
           maxLength={ASSIGNMENT_LIMITS.description}
-          placeholder="جزئیات، یادداشت، لینک منابع…"
+          placeholder={descriptionPlaceholder}
           multiline
         />
 
@@ -158,7 +164,7 @@ export function TaskForm({
         </Button>
         {onDelete ? (
           <Button variant="danger" onPress={onDelete}>
-            حذف کار
+            {deleteLabel}
           </Button>
         ) : null}
       </ScrollView>
