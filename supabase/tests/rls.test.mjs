@@ -86,6 +86,8 @@ await ok('B requests to join; owner notified and can see B profile', async () =>
   reqId = (await as(B, `select request_to_join($1) as id`, [token]))[0].id;
   const n = await as(A, `select type from notifications`);
   eq(n, [{ type: 'join_request_received' }], 'owner notif');
+  const payload = (await as(A, `select payload from notifications`))[0].payload;
+  eq([payload.course_name, payload.requester_name], ['DB', 'Student B'], 'names in payload');
   eq((await as(A, `select full_name from profiles where id = $1`, [B])).length, 1, 'requester profile visible');
 });
 await rejects('B cannot request twice', () => as(B, `select request_to_join($1)`, [token]));
@@ -143,6 +145,14 @@ await ok('owner removes B; B loses access', async () => {
 await ok('owner revokes invite; preview invalid', async () => {
   await as(A, `update class_invites set revoked_at = now() where token = $1`, [token]);
   eq((await as(C, `select is_valid from get_invite_preview($1)`, [token])), [{ is_valid: false }], 'preview');
+});
+await ok('rejected requester still sees which class (name in payload)', async () => {
+  const t2 = (await as(A, `insert into class_invites (class_id) values ($1) returning token`, [classId]))[0].token;
+  const r2 = (await as(C, `select request_to_join($1) as id`, [t2]))[0].id;
+  await as(A, `select respond_to_join_request($1, false)`, [r2]);
+  eq((await as(C, `select * from classes`)).length, 0, 'C still cannot read class');
+  eq((await as(C, `select type, payload ->> 'course_name' as course from notifications`)),
+    [{ type: 'join_request_rejected', course: 'DB' }], 'C notif');
 });
 await rejects('anon cannot call request_to_join', async () => {
   await db.exec(`select set_config('request.jwt.claim.sub', '', false); set role anon;`);

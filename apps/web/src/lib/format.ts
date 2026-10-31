@@ -72,3 +72,16 @@ export function describeDue(dueAt: string | null, now = Date.now()): { text: str
   if (diff < 0) return { text: `${amount} گذشته`, state: "overdue" };
   return { text: `${amount} مانده`, state: diff < 2 * 86_400_000 ? "soon" : "upcoming" };
 }
+
+/** Past time as "همین الان" / "۵ دقیقه پیش" / "۳ روز پیش", or the date after a week. */
+export function formatTimeAgo(value: string, now = Date.now()): string {
+  const diff = Math.max(0, now - new Date(value).getTime());
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "همین الان";
+  if (minutes < 60) return `${formatNumber(minutes)} دقیقه پیش`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${formatNumber(hours)} ساعت پیش`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${formatNumber(days)} روز پیش`;
+  return formatDate(value);
+}

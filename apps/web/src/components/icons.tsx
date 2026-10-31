@@ -69,6 +69,15 @@ export function ClockIcon({ className }: { className?: string }) {
   );
 }
 
+export function BellIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </Svg>
+  );
+}
+
 /** "→ Parent page" link at the top of sub-pages. */
 export function BackLink({ href, children }: { href: string; children: ReactNode }) {
   return (
