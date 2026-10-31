@@ -31,3 +31,14 @@ export const PASSWORD_MIN_LENGTH = 8;
 export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
+
+export { authErrorMessage, GENERIC_ERROR } from "./auth-errors";
+export * from "./jalali";
+export { dbErrorMessage } from "./db-errors";
+
+/** Extracts an invite token from a pasted link (…/join/<token>, unimate://join/<token>) or a bare token. */
+export function parseInviteToken(input: string): string | null {
+  const match = /(?:^|\/join\/)([0-9a-f]{36})(?:[/?#]|$)/i.exec(input.trim());
+  return match ? match[1].toLowerCase() : null;
+}
+export { describeNotification, type NotificationType } from "./notifications";
