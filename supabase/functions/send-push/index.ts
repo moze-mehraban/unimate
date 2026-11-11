@@ -1,27 +1,55 @@
-// send-push: delivers one event notification to the recipient's phones via FCM HTTP v1.
+// send-push: delivers one notification to the recipient's phones (FCM HTTP v1) and
+// browsers (Web Push). Events go to both; class/deadline reminders only to browsers,
+// because the Android app schedules those itself.
 //
 // Called by the queue_push() trigger (pg_net) with {"notification_id": "…"} and
 // "Authorization: Bearer <PUSH_FUNCTION_KEY>". Secrets (supabase secrets set …):
 //   PUSH_FUNCTION_KEY         shared secret; same value as the push_function_key Vault secret
-//   FIREBASE_SERVICE_ACCOUNT  the Firebase service-account JSON (Project settings → Service accounts)
+//   FIREBASE_SERVICE_ACCOUNT  the Firebase service-account JSON (phones; optional)
+//   VAPID_KEYS                {"publicKey", "privateKey" (JWK), "subject"} (browsers; optional)
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase.
+// Setup: npm run push:setup -- <firebase.json> and/or --web (see docs/PUSH_NOTIFICATIONS.md).
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { sendWebPush, type VapidKeys } from "./webpush.ts";
 
 type ServiceAccount = { project_id: string; client_email: string; private_key: string };
 type Payload = Record<string, string | null | undefined>;
 
-// Push text for event notifications. Mirrors describeNotification() in
-// packages/shared/src/notifications.ts (Deno can't import the workspace package);
-// reminders aren't pushed — the app schedules them locally.
+const REMINDERS = new Set(["class_starting", "assignment_due_soon"]);
+
+// --- Text. Mirrors describeNotification() in packages/shared/src/notifications.ts
+// (Deno can't import the workspace package); Persian digits and Tehran time via Intl.
+
+const toFa = (value: string) => value.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
+const room = (r: string) => (/^\d/.test(r) ? `اتاق ${toFa(r)}` : r);
+
+function deadline(iso: string): string {
+  const date = new Date(iso);
+  const day = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+    timeZone: "Asia/Tehran",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(date);
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Tehran",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+  return `${day} ساعت ${toFa(time)}`;
+}
+
 function describe(type: string, classId: string | null, p: Payload): { title: string; body: string; url: string } | null {
   const course = p.course_name || "کلاس";
   const classUrl = classId ? `/classes/${classId}` : "/classes";
+  const due = p.due_at ? ` · مهلت: ${deadline(p.due_at)}` : "";
   switch (type) {
     case "assignment_created":
       return {
         title: `تکلیف جدید در ${course}`,
-        body: `«${p.title ?? ""}»${p.creator_name ? ` — ثبت توسط ${p.creator_name}` : ""}`,
+        body: `«${p.title ?? ""}»${p.creator_name ? ` — ثبت توسط ${p.creator_name}` : ""}${due}`,
         url: classUrl,
       };
     case "join_request_received":
@@ -30,6 +58,14 @@ function describe(type: string, classId: string | null, p: Payload): { title: st
       return { title: "درخواستت تأیید شد", body: `حالا عضو ${course} هستی.`, url: classUrl };
     case "join_request_rejected":
       return { title: "درخواستت رد شد", body: `درخواست عضویت در ${course} پذیرفته نشد.`, url: "/classes" };
+    case "class_starting":
+      return {
+        title: `کلاس ${course} به‌زودی شروع می‌شود`,
+        body: `ساعت ${p.start_time ? toFa(p.start_time) : ""}${p.room ? ` · ${room(p.room)}` : ""}`,
+        url: classUrl,
+      };
+    case "assignment_due_soon":
+      return { title: "مهلت تکلیف نزدیک است", body: `«${p.title ?? ""}» در ${course}${due}`, url: classUrl };
     case "assignment_reported":
       return { title: `گزارش اطلاعات نادرست در ${course}`, body: `«${p.title ?? ""}»: ${p.reason ?? ""}`, url: classUrl };
     default:
@@ -107,12 +143,25 @@ Deno.serve(async (req) => {
   if (!n) return new Response("not found", { status: 404 });
 
   const message = describe(n.type, n.class_id, (n.payload ?? {}) as Payload);
-  if (!message) return Response.json({ sent: 0, skipped: "not an event notification" });
+  if (!message) return Response.json({ sent: 0, skipped: "unknown type" });
 
-  const { data: tokens } = await supabase.from("push_tokens").select("token").eq("user_id", n.user_id);
-  if (!tokens?.length) return Response.json({ sent: 0 });
+  const [phones, browsers] = await Promise.all([
+    REMINDERS.has(n.type) ? 0 : sendToPhones(supabase, n.user_id, message),
+    sendToBrowsers(supabase, n.user_id, { ...message, tag: notification_id }),
+  ]);
+  return Response.json({ sent: phones + browsers, phones, browsers });
+});
 
-  const sa: ServiceAccount = JSON.parse(Deno.env.get("FIREBASE_SERVICE_ACCOUNT") ?? "{}");
+type Client = ReturnType<typeof createClient>;
+type Message = { title: string; body: string; url: string };
+
+async function sendToPhones(supabase: Client, userId: string, message: Message): Promise<number> {
+  const raw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
+  if (!raw) return 0;
+  const { data: tokens } = await supabase.from("push_tokens").select("token").eq("user_id", userId);
+  if (!tokens?.length) return 0;
+
+  const sa: ServiceAccount = JSON.parse(raw);
   const accessToken = await googleAccessToken(sa);
 
   let sent = 0;
@@ -142,5 +191,31 @@ Deno.serve(async (req) => {
       }
     }
   }
-  return Response.json({ sent });
-});
+  return sent;
+}
+
+async function sendToBrowsers(supabase: Client, userId: string, message: Message & { tag: string }): Promise<number> {
+  const raw = Deno.env.get("VAPID_KEYS");
+  if (!raw) return 0;
+  const { data: subs } = await supabase.from("web_push_subscriptions").select("endpoint, p256dh, auth").eq("user_id", userId);
+  if (!subs?.length) return 0;
+
+  const vapid: VapidKeys & { subject: string } = JSON.parse(raw);
+  let sent = 0;
+  for (const sub of subs) {
+    try {
+      const res = await sendWebPush(sub, message, vapid, vapid.subject);
+      if (res.ok) {
+        sent++;
+      } else if (res.status === 404 || res.status === 410) {
+        // Unsubscribed or expired in the browser: forget it.
+        await supabase.from("web_push_subscriptions").delete().eq("endpoint", sub.endpoint);
+      } else {
+        console.error(`Web push failed (${res.status}) for ${new URL(sub.endpoint).host}: ${await res.text()}`);
+      }
+    } catch (error) {
+      console.error(`Web push error for ${new URL(sub.endpoint).host}: ${error}`);
+    }
+  }
+  return sent;
+}

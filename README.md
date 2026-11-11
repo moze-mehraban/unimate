@@ -135,9 +135,9 @@ npm run db:auth-proxy -- http://host.docker.internal:<port>
 
 بعد از هر migration جدید، قبل یا همراه با استقرار کد، `npx supabase db push` را اجرا کنید.
 
-### اعلان روی گوشی (Push)
+### اعلان روی گوشی و مرورگر (Push)
 
-یادآوری‌های کلاس و مهلت بدون هیچ تنظیمی به‌صورت اعلان محلی روی گوشی می‌آیند. برای اعلان رویدادها (تکلیف جدید، درخواست عضویت و …) وقتی اپ بسته است، Firebase را طبق [docs/PUSH_NOTIFICATIONS.md](docs/PUSH_NOTIFICATIONS.md) راه بیندازید.
+یادآوری‌های کلاس و مهلت بدون هیچ تنظیمی به‌صورت اعلان محلی روی گوشی می‌آیند. برای اعلان رویدادها (تکلیف جدید، درخواست عضویت و …) وقتی اپ بسته است، Firebase را طبق [docs/PUSH_NOTIFICATIONS.md](docs/PUSH_NOTIFICATIONS.md) راه بیندازید. برای اعلان مرورگر روی سایت (Web Push): `npx supabase db push` و `npm run push:setup -- --web`، سپس فایل `apps/web/src/lib/web-push-key.ts` را commit کنید.
 
 ### اندروید
 
@@ -155,4 +155,6 @@ APK را طبق بخش «ساخت APK اندروید» با فایل `.env.produ
 | `npm run test:db` | تست‌های RLS دیتابیس (بدون Docker) |
 | `npm run db:reset` | اجرای دوبارهٔ migrationها روی دیتابیس محلی (داده‌ها پاک می‌شوند) |
 | `npm run db:types` | تولید دوبارهٔ تایپ‌های TypeScript از دیتابیس |
+| `npm run push:setup` | راه‌اندازی push (FCM و/یا `--web`) روی پروژهٔ ابری |
+| `npm run icons` | ساخت دوبارهٔ همهٔ آیکون‌های اپ و سایت از `scripts/generate-icons.mjs` |
 | `npm run db:auth-proxy` | عبور کانتینر Auth محلی از پروکسی برای ورود با Google |

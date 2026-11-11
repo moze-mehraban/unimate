@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
+import { WebPushToggle } from "@/components/web-push";
 import { requireUser } from "@/lib/auth";
+import { VAPID_PUBLIC_KEY } from "@/lib/web-push-key";
 import { PasswordForm, ProfileForm, ReminderForm } from "./profile-forms";
 
 export const metadata: Metadata = { title: "پروفایل" };
@@ -38,6 +40,15 @@ async function ProfileSections() {
           deadlineHours={user.profile.deadline_reminder_hours}
         />
       </Card>
+
+      {VAPID_PUBLIC_KEY ? (
+        <Card
+          title="اعلان مرورگر"
+          description="حتی وقتی سایت بسته است، تکلیف‌های جدید، درخواست‌ها و یادآوری‌ها را به‌صورت اعلان بگیر. برای هر مرورگر و دستگاه جداگانه روشن می‌شود."
+        >
+          <WebPushToggle />
+        </Card>
+      ) : null}
 
       {user.isOAuthOnly ? (
         <Card title="امنیت" description="با حساب گوگل وارد شده‌ای؛ رمز عبور از طریق گوگل مدیریت می‌شود." />
