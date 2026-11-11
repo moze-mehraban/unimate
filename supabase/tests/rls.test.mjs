@@ -159,5 +159,82 @@ await rejects('anon cannot call request_to_join', async () => {
   try { await db.query(`select request_to_join($1)`, [token]); } finally { await db.exec('reset role;'); }
 });
 
+// --- Class colors, sessions, reminders -------------------------------------------
+await ok('new class gets a color its creator does not already use', async () => {
+  const first = (await as(A, `select color from classes where id = $1`, [classId]))[0].color;
+  const second = (await as(A, `insert into classes (course_name) values ('OS') returning id, color`))[0];
+  if (second.color === first) throw new Error(`both classes are ${first}`);
+  await as(A, `delete from classes where id = $1`, [second.id]);
+});
+await ok('owner can change the class color; invalid colors rejected', async () => {
+  eq((await as(A, `update classes set color = 'teal' where id = $1 returning color`, [classId])), [{ color: 'teal' }], 'update');
+});
+await rejects('class color must be from the palette', () => as(A, `update classes set color = 'black' where id = $1`, [classId]));
+let sessionId;
+await ok('owner adds a weekly session', async () => {
+  sessionId = (await as(A, `insert into class_sessions (class_id, weekday, start_time, end_time, room)
+                            values ($1, 0, '10:00', '11:30', '203') returning id`, [classId]))[0].id;
+});
+await rejects('session must end after it starts', () =>
+  as(A, `insert into class_sessions (class_id, weekday, start_time, end_time) values ($1, 1, '12:00', '11:00')`, [classId]));
+await rejects('non-owner cannot add sessions', () =>
+  as(C, `insert into class_sessions (class_id, weekday, start_time, end_time) values ($1, 2, '08:00', '09:00')`, [classId]));
+await ok('outsider cannot see sessions', async () => {
+  eq((await as(C, `select * from class_sessions`)).length, 0, 'rows');
+});
+await ok('users set their own reminder lead times', async () => {
+  eq((await as(C, `update profiles set class_reminder_minutes = 15, deadline_reminder_hours = null where id = $1
+                   returning class_reminder_minutes, deadline_reminder_hours`, [C])),
+    [{ class_reminder_minutes: 15, deadline_reminder_hours: null }], 'C settings');
+});
+await rejects('clients cannot run the reminder job', () => as(A, `select send_due_reminders()`));
+await rejects('clients cannot read the reminder log', () => as(A, `insert into reminder_log (user_id, kind, ref_id, occurs_at) values ($1, 'class', $1, now())`, [A]));
+await ok('class reminder: sent once, 30 min before (Sat 10:00 Tehran)', async () => {
+  // 2026-11-14 is a Saturday; A's default lead is 30 minutes. Deadline reminders off
+  // here: HW1 is due "3 days after the test runs", which can fall in this window.
+  await as(A, `update profiles set deadline_reminder_hours = null where id = $1`, [A]);
+  const sent = (await db.query(`select send_due_reminders('2026-11-14 09:45:00+03:30') as n`)).rows[0].n;
+  eq(sent, 1, 'first run');
+  eq((await db.query(`select send_due_reminders('2026-11-14 09:50:00+03:30') as n`)).rows[0].n, 0, 'second run');
+  const n = await as(A, `select payload ->> 'room' as room, payload ->> 'start_time' as t from notifications where type = 'class_starting'`);
+  eq(n, [{ room: '203', t: '10:00' }], 'A notification');
+  eq((await db.query(`select send_due_reminders('2026-11-14 09:20:00+03:30') as n`)).rows[0].n, 0, 'too early');
+  await as(A, `update profiles set deadline_reminder_hours = 24 where id = $1`, [A]);
+});
+await ok('deadline reminder: sent before due unless done', async () => {
+  const due = (await db.query(`select due_at from assignments where id = $1`, [asgId])).rows[0].due_at;
+  const at = new Date(new Date(due).getTime() - 2 * 3600_000).toISOString();
+  eq((await db.query(`select send_due_reminders($1) as n`, [at])).rows[0].n, 1, 'A (todo) reminded');
+  eq((await as(A, `select count(*)::int c from notifications where type = 'assignment_due_soon'`))[0].c, 1, 'A notif');
+  await as(A, `insert into assignment_status (assignment_id, status) values ($1, 'done')`, [asgId]);
+  await db.query(`delete from reminder_log`);
+  eq((await db.query(`select send_due_reminders($1) as n`, [at])).rows[0].n, 0, 'done → no reminder');
+});
+
+// --- Push tokens ----------------------------------------------------------------
+const TOKEN = 'fcm-token-of-a-test-device-0001';
+await ok('user registers a push token and sees only their own', async () => {
+  await as(A, `select register_push_token($1)`, [TOKEN]);
+  eq((await as(A, `select token from push_tokens`)), [{ token: TOKEN }], 'A sees it');
+  eq((await as(C, `select * from push_tokens`)).length, 0, 'C sees none');
+});
+await rejects('clients cannot write push_tokens directly', () => as(C, `insert into push_tokens (token) values ('direct-insert-token-xx')`));
+await ok('same device signing into another account moves the token', async () => {
+  await as(C, `select register_push_token($1)`, [TOKEN]);
+  eq((await as(A, `select * from push_tokens`)).length, 0, 'A lost it');
+  eq((await as(C, `select count(*)::int c from push_tokens`))[0].c, 1, 'C has it');
+});
+await ok('unregister only removes your own token', async () => {
+  await as(A, `select unregister_push_token($1)`, [TOKEN]);
+  eq((await as(C, `select count(*)::int c from push_tokens`))[0].c, 1, 'A could not remove C token');
+  await as(C, `select unregister_push_token($1)`, [TOKEN]);
+  eq((await as(C, `select count(*)::int c from push_tokens`))[0].c, 0, 'C removed it');
+});
+await ok('push trigger is a no-op without pg_net (event notification still saved)', async () => {
+  await as(C, `select register_push_token($1)`, [TOKEN]);
+  await db.query(`insert into notifications (user_id, type, payload) values ($1, 'join_request_approved', '{}')`, [C]);
+  eq((await as(C, `select count(*)::int c from notifications where type = 'join_request_approved'`))[0].c, 1, 'saved');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { GENERIC_ERROR, PROFILE_LIMITS } from "@unimate/shared";
+import { ReminderSettings } from "@/components/reminder-settings";
 import { AppText, Banner, Button, Card, Field, Loading } from "@/components/ui";
 import { confirmAsync } from "@/lib/dialogs";
+import { clearPhoneNotifications } from "@/lib/phone-notifications";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/providers/session";
 
@@ -13,16 +15,21 @@ export default function ProfileScreen() {
   const [university, setUniversity] = useState("");
   const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reminders, setReminders] = useState<{ classMinutes: number | null; deadlineHours: number | null } | null>(null);
 
   useEffect(() => {
     supabase
       .from("profiles")
-      .select("full_name, university")
+      .select("full_name, university, class_reminder_minutes, deadline_reminder_hours")
       .eq("id", userId)
       .single()
       .then(({ data }) => {
         setFullName(data?.full_name ?? "");
         setUniversity(data?.university ?? "");
+        setReminders({
+          classMinutes: data?.class_reminder_minutes ?? null,
+          deadlineHours: data?.deadline_reminder_hours ?? null,
+        });
       });
   }, [userId]);
 
@@ -39,7 +46,10 @@ export default function ProfileScreen() {
   }
 
   async function signOut() {
-    if (await confirmAsync("خروج از حساب", "از حسابت خارج می‌شوی؟", "خروج", true)) await supabase.auth.signOut();
+    if (!(await confirmAsync("خروج از حساب", "از حسابت خارج می‌شوی؟", "خروج", true))) return;
+    // While still signed in: stop pushes to this phone and drop this account's reminders.
+    await clearPhoneNotifications();
+    await supabase.auth.signOut();
   }
 
   if (fullName === null) return <Loading />;
@@ -66,6 +76,9 @@ export default function ProfileScreen() {
           ذخیره
         </Button>
       </Card>
+      {reminders ? (
+        <ReminderSettings userId={userId} classMinutes={reminders.classMinutes} deadlineHours={reminders.deadlineHours} />
+      ) : null}
       <Button variant="danger" onPress={signOut}>
         خروج از حساب
       </Button>

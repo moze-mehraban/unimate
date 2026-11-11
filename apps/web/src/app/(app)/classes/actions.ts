@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
-import { CLASS_LIMITS, INVITE_MAX_USES_LIMIT } from "@unimate/shared";
+import { CLASS_COLOR_KEYS, CLASS_LIMITS, INVITE_MAX_USES_LIMIT, type ClassColor } from "@unimate/shared";
 import { requireUser } from "@/lib/auth";
 import { GENERIC_ERROR } from "@/lib/auth-errors";
 import { dbErrorMessage } from "@/lib/db-errors";
@@ -124,4 +124,54 @@ export async function requestToJoin(token: string): Promise<FormState> {
 
   refresh();
   return { success: "درخواست عضویتت ثبت شد. پس از تأیید سازندهٔ کلاس، کلاس در فهرست کلاس‌هایت نمایش داده می‌شود." };
+}
+
+export async function setClassColor(classId: string, color: ClassColor) {
+  await requireUser();
+  if (!CLASS_COLOR_KEYS.includes(color)) return;
+  const supabase = await createClient();
+  await supabase.from("classes").update({ color }).eq("id", classId);
+  refresh();
+}
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const ROOM_LIMIT = 80;
+
+/** Adds a weekly session (owner only, via RLS). Times are Tehran wall-clock "HH:mm". */
+export async function addSession(classId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  await requireUser();
+  const values = {
+    weekday: str(formData, "weekday"),
+    start_time: str(formData, "start_time"),
+    end_time: str(formData, "end_time"),
+    room: str(formData, "room"),
+  };
+  const fieldErrors: Record<string, string> = {};
+  const weekday = Number(values.weekday);
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) fieldErrors.weekday = "روز را انتخاب کنید.";
+  if (!TIME_RE.test(values.start_time)) fieldErrors.start_time = "ساعت شروع نامعتبر است.";
+  if (!TIME_RE.test(values.end_time)) fieldErrors.end_time = "ساعت پایان نامعتبر است.";
+  else if (!fieldErrors.start_time && values.end_time <= values.start_time) fieldErrors.end_time = "پایان باید بعد از شروع باشد.";
+  if (values.room.length > ROOM_LIMIT) fieldErrors.room = "نام اتاق خیلی طولانی است.";
+  if (Object.keys(fieldErrors).length) return { fieldErrors, values };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("class_sessions").insert({
+    class_id: classId,
+    weekday,
+    start_time: values.start_time,
+    end_time: values.end_time,
+    room: values.room,
+  });
+  if (error) return { error: GENERIC_ERROR, values };
+
+  refresh();
+  return { success: "جلسه اضافه شد." };
+}
+
+export async function deleteSession(sessionId: string) {
+  await requireUser();
+  const supabase = await createClient();
+  await supabase.from("class_sessions").delete().eq("id", sessionId);
+  refresh();
 }

@@ -14,7 +14,7 @@ type WorkItemBase = {
 };
 
 export type WorkItem =
-  | (WorkItemBase & { kind: "assignment"; classId: string; courseName: string })
+  | (WorkItemBase & { kind: "assignment"; classId: string; courseName: string; classColor: string })
   | (WorkItemBase & { kind: "task" });
 
 const PRIORITY_RANK: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
@@ -32,7 +32,7 @@ function compareWork(a: WorkItem, b: WorkItem) {
 /** Assignments from all my classes (with my personal status) plus my personal tasks. RLS scopes both. */
 export async function fetchMyWork(): Promise<WorkItem[]> {
   const [assignments, tasks] = await Promise.all([
-    supabase.from("my_assignments").select("id, class_id, course_name, title, description, due_at, priority, status"),
+    supabase.from("my_assignments").select("id, class_id, course_name, class_color, title, description, due_at, priority, status"),
     supabase.from("personal_tasks").select("id, title, description, due_at, priority, status"),
   ]);
   if (assignments.error) throw assignments.error;
@@ -45,6 +45,7 @@ export async function fetchMyWork(): Promise<WorkItem[]> {
       id: a.id,
       classId: a.class_id,
       courseName: a.course_name,
+      classColor: a.class_color,
       title: a.title,
       description: a.description,
       dueAt: a.due_at,

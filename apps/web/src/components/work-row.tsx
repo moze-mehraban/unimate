@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { classColorHex } from "@unimate/shared";
 import { setAssignmentStatus } from "@/app/(app)/classes/[classId]/assignments/actions";
 import { deleteTask, setTaskStatus } from "@/app/(app)/tasks/actions";
 import { StatusControl } from "@/components/status-control";
@@ -33,7 +34,12 @@ export function WorkRow({ item }: { item: WorkItem }) {
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
             {item.kind === "assignment" ? (
-              <Link href={`/classes/${item.classId}#assignment-${item.id}`} className="text-primary hover:underline">
+              <Link
+                href={`/classes/${item.classId}#assignment-${item.id}`}
+                className="inline-flex items-center gap-1.5 font-medium hover:underline"
+                style={{ color: classColorHex(item.classColor) }}
+              >
+                <span aria-hidden="true" className="size-2 rounded-full bg-current" />
                 {item.courseName}
               </Link>
             ) : (

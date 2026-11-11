@@ -2,10 +2,13 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { Tabs } from "expo-router/js-tabs";
 import { useEffect, type ComponentProps } from "react";
-import type { ColorValue } from "react-native";
+import { AppState, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { takePendingInvite } from "@/lib/pending-invite";
+import { refreshReminders, registerPushToken } from "@/lib/phone-notifications";
+import { useNotificationTaps } from "@/lib/use-notification-taps";
 import { NotificationsProvider, useNotifications } from "@/providers/notifications";
+import { useUserId } from "@/providers/session";
 import { toFaDigits } from "@unimate/shared";
 import { FONT, useColors } from "@/lib/theme";
 
@@ -28,8 +31,24 @@ export default function TabsLayout() {
 
 function TabsNavigator() {
   const c = useColors();
-  const { unread } = useNotifications();
+  const { unread, version } = useNotifications();
   const insets = useSafeAreaInsets();
+  const userId = useUserId();
+
+  // Phone notifications: register for push once, and keep the local reminders in step
+  // with the data — on start, whenever the app comes back to the front, and when a
+  // realtime notification says something changed (e.g. a new assignment).
+  useEffect(() => {
+    registerPushToken();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshReminders(userId);
+    });
+    return () => sub.remove();
+  }, [userId]);
+  useEffect(() => {
+    refreshReminders(userId);
+  }, [userId, version]);
+  useNotificationTaps();
 
   // Back to the invite that sent a signed-out user to sign in. This layout mounts
   // only after Stack.Protected has switched to the signed-in screens; pushing from

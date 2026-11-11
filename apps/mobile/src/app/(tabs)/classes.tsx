@@ -2,7 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, RefreshControl, View } from "react-native";
-import { toFaDigits } from "@unimate/shared";
+import { classColorHex, toFaDigits } from "@unimate/shared";
 import { Fab } from "@/components/fab";
 import { AppText, Banner, Loading } from "@/components/ui";
 import { fetchMyClasses, type ClassSummary } from "@/lib/classes";
@@ -59,6 +59,8 @@ export default function ClassesScreen() {
               backgroundColor: c.surface,
               borderColor: c.border,
               borderWidth: 1,
+              borderStartWidth: 5,
+              borderStartColor: classColorHex(item.color),
               borderRadius: 14,
               padding: 14,
               gap: 4,

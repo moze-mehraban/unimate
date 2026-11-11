@@ -1,5 +1,5 @@
 import { Pressable, View } from "react-native";
-import { formatDeadlineFa, TASK_STATUSES, type TaskStatus } from "@unimate/shared";
+import { classColorHex, formatDeadlineFa, TASK_STATUSES, type TaskStatus } from "@unimate/shared";
 import { dueColor, priorityColors, PRIORITY_TEXT, STATUS_TEXT } from "@/lib/labels";
 import { useColors } from "@/lib/theme";
 import type { WorkItem } from "@/lib/work";
@@ -54,9 +54,18 @@ export function WorkCard({
       </View>
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: 10 }}>
-        <AppText size={12} tone={item.kind === "assignment" ? "primary" : "muted"}>
-          {item.kind === "assignment" ? item.courseName : "کار شخصی"}
-        </AppText>
+        {item.kind === "assignment" ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: classColorHex(item.classColor) }} />
+            <AppText size={12} weight="medium" style={{ color: classColorHex(item.classColor) }}>
+              {item.courseName}
+            </AppText>
+          </View>
+        ) : (
+          <AppText size={12} tone="muted">
+            کار شخصی
+          </AppText>
+        )}
         {item.dueAt ? (
           <AppText size={12} tone="muted">
             مهلت: {formatDeadlineFa(item.dueAt)}

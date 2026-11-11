@@ -1,4 +1,6 @@
 import type { Database, Json } from "./database.types";
+import { toFaDigits } from "./jalali";
+import { formatRoom } from "./schedule";
 
 export type NotificationType = Database["public"]["Enums"]["notification_type"];
 
@@ -43,6 +45,17 @@ export function describeNotification(
     case "join_request_rejected":
       // Not a member, so the class page would 404.
       return { title: "درخواستت رد شد", body: `درخواست عضویت در ${course} پذیرفته نشد.`, href: "/classes" };
+    case "class_starting": {
+      const time = p.start_time ? toFaDigits(p.start_time) : "";
+      const room = p.room ? ` · ${formatRoom(p.room)}` : "";
+      return { title: `کلاس ${course} به‌زودی شروع می‌شود`, body: `ساعت ${time}${room}`, href: classHref };
+    }
+    case "assignment_due_soon":
+      return {
+        title: `مهلت تکلیف نزدیک است`,
+        body: `«${p.title ?? ""}» در ${course}${p.due_at ? ` · مهلت: ${formatDeadline(p.due_at)}` : ""}`,
+        href: p.assignment_id ? `${classHref}#assignment-${p.assignment_id}` : classHref,
+      };
     case "assignment_reported":
       return {
         title: `گزارش اطلاعات نادرست در ${course}`,

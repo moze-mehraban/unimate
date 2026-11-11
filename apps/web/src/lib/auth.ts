@@ -8,7 +8,7 @@ export type CurrentUser = {
   email: string;
   /** Signed up with Google only, so there is no password to change. */
   isOAuthOnly: boolean;
-  profile: Pick<Profile, "full_name" | "university" | "avatar_url">;
+  profile: Pick<Profile, "full_name" | "university" | "avatar_url" | "class_reminder_minutes" | "deadline_reminder_hours">;
 };
 
 /**
@@ -24,7 +24,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, university, avatar_url")
+    .select("full_name, university, avatar_url, class_reminder_minutes, deadline_reminder_hours")
     .eq("id", user.id)
     .single();
 
@@ -34,7 +34,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     id: user.id,
     email: user.email ?? "",
     isOAuthOnly: providers.length > 0 && !providers.includes("email"),
-    profile: profile ?? { full_name: "", university: "", avatar_url: null },
+    profile: profile ?? { full_name: "", university: "", avatar_url: null, class_reminder_minutes: 30, deadline_reminder_hours: 24 },
   };
 }
 

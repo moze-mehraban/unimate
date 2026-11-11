@@ -135,6 +135,10 @@ npm run db:auth-proxy -- http://host.docker.internal:<port>
 
 بعد از هر migration جدید، قبل یا همراه با استقرار کد، `npx supabase db push` را اجرا کنید.
 
+### اعلان روی گوشی (Push)
+
+یادآوری‌های کلاس و مهلت بدون هیچ تنظیمی به‌صورت اعلان محلی روی گوشی می‌آیند. برای اعلان رویدادها (تکلیف جدید، درخواست عضویت و …) وقتی اپ بسته است، Firebase را طبق [docs/PUSH_NOTIFICATIONS.md](docs/PUSH_NOTIFICATIONS.md) راه بیندازید.
+
 ### اندروید
 
 APK را طبق بخش «ساخت APK اندروید» با فایل `.env.production.local` روی پروژهٔ ابری بسازید. (راه جایگزین: پروفایل‌های `apps/mobile/eas.json` برای سرویس ابری EAS.)
