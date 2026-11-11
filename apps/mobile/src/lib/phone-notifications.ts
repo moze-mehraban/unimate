@@ -77,6 +77,9 @@ export async function rescheduleReminders(userId: string): Promise<void> {
   const now = Date.now();
   const until = now + HORIZON_DAYS * 86_400_000;
   const reminders: { at: number; title: string; body: string; url: string }[] = [];
+  // Reminder time already passed but the class/deadline is still ahead (e.g. an
+  // assignment added with a deadline closer than the reminder setting): show now, once.
+  const late: { key: string; title: string; body: string; url: string }[] = [];
 
   if (classMinutes !== null) {
     for (let d = 0; d <= HORIZON_DAYS; d++) {
@@ -84,15 +87,17 @@ export async function rescheduleReminders(userId: string): Promise<void> {
       for (const s of sessionsOnDay(sessions, day)) {
         const startsAt = fromTehranLocal(`${day}T${s.start_time.slice(0, 5)}`);
         if (!startsAt) continue;
-        const at = new Date(startsAt).getTime() - classMinutes * 60_000;
-        if (at <= now || at > until) continue;
+        const start = new Date(startsAt).getTime();
+        const at = start - classMinutes * 60_000;
+        if (start <= now || at > until) continue;
         const text = describeNotification(
           "class_starting",
           s.class_id,
           { course_name: s.courseName, start_time: s.start_time.slice(0, 5), room: s.room },
           formatDeadlineFa,
         );
-        reminders.push({ at, ...text, url: text.href });
+        if (at <= now) late.push({ key: `class:${s.id}:${start}`, ...text, url: text.href });
+        else reminders.push({ at, ...text, url: text.href });
       }
     }
   }
@@ -100,17 +105,30 @@ export async function rescheduleReminders(userId: string): Promise<void> {
   if (deadlineHours !== null) {
     for (const item of work) {
       if (item.kind !== "assignment" || item.status === "done" || !item.dueAt) continue;
-      const at = new Date(item.dueAt).getTime() - deadlineHours * 3_600_000;
-      if (at <= now || at > until) continue;
+      const due = new Date(item.dueAt).getTime();
+      const at = due - deadlineHours * 3_600_000;
+      if (due <= now || at > until) continue;
       const text = describeNotification(
         "assignment_due_soon",
         item.classId,
         { assignment_id: item.id, title: item.title, due_at: item.dueAt, course_name: item.courseName },
         formatDeadlineFa,
       );
-      reminders.push({ at, ...text, url: text.href });
+      if (at <= now) late.push({ key: `due:${item.id}:${due}`, ...text, url: text.href });
+      else reminders.push({ at, ...text, url: text.href });
     }
   }
+
+  const shown = readShownLate();
+  for (const r of late) {
+    if (shown.has(r.key)) continue;
+    await Notifications.scheduleNotificationAsync({
+      content: { title: r.title, body: r.body, data: { url: r.url } },
+      trigger: { channelId: CHANNEL },
+    });
+  }
+  // Remember only what's still relevant, so the list stays small.
+  writeShownLate(late.map((r) => r.key));
 
   // Only our reminders are ever scheduled, so start from a clean slate.
   await Notifications.cancelAllScheduledNotificationsAsync();
@@ -119,6 +137,25 @@ export async function rescheduleReminders(userId: string): Promise<void> {
       content: { title: r.title, body: r.body, data: { url: r.url } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(r.at), channelId: CHANNEL },
     });
+  }
+}
+
+// Keys of late reminders already shown (localStorage is persisted by expo-sqlite, see supabase.ts).
+const SHOWN_LATE_KEY = "unimate.shownLateReminders";
+
+function readShownLate(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(SHOWN_LATE_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeShownLate(keys: string[]) {
+  try {
+    localStorage.setItem(SHOWN_LATE_KEY, JSON.stringify(keys));
+  } catch {
+    // Not persisted: worst case a late reminder shows again next time.
   }
 }
 

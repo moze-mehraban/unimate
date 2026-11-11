@@ -3,7 +3,8 @@ import Link from "next/link";
 export function Logo({ href = "/" }: { href?: string }) {
   return (
     <Link href={href} className="flex items-center gap-2 text-lg font-bold">
-      <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">U</span>
+      {/* eslint-disable-next-line @next/next/no-img-element -- tiny static SVG (app/icon.svg) */}
+      <img src="/icon.svg" alt="" className="size-8" />
       یونی‌میت
     </Link>
   );

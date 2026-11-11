@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#6366f1"/>
+    <stop offset="1" stop-color="#4338ca"/>
+  </linearGradient></defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <g transform="translate(512 512) scale(0.86) translate(-512 -490)">
+  <defs>
+    <mask id="badge-cut">
+      <rect width="1024" height="1024" fill="#fff"/>
+      <circle cx="690" cy="688" r="150" fill="#000"/>
+    </mask>
+    
+  </defs>
+  <g mask="url(#badge-cut)">
+    <path d="M352 470 V600 C352 650 432 690 512 690 C592 690 672 650 672 600 V470 Z" fill="#e0e7ff"/>
+    <path d="M512 290 L822 420 L512 550 L202 420 Z" fill="#fff"/>
+    <path d="M512 420 L262 470 V610" fill="none" stroke="#fde68a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="262" cy="628" r="26" fill="#fde68a"/>
+  </g>
+  <g >
+    <circle cx="690" cy="688" r="118" fill="#f59e0b"/>
+    <path d="M632 690 l40 40 l80 -84" fill="none" stroke="#fff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  </g></g>
+</svg>
