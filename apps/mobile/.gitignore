@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Firebase config for FCM push (per project; kept out of git)
+google-services.json

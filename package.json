@@ -11,7 +11,8 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > packages/shared/src/database.types.ts",
-    "db:auth-proxy": "node supabase/scripts/auth-proxy.mjs"
+    "db:auth-proxy": "node supabase/scripts/auth-proxy.mjs",
+    "push:setup": "node supabase/scripts/setup-push.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.13",

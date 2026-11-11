@@ -4,10 +4,13 @@ import { useCallback, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import {
   addDays,
+  classColorHex,
   dayKeyOf,
+  describeSession,
   formatDayTitle,
   jalaliMonthGrid,
   jalaliOfKey,
+  sessionsOnDay,
   toFaDigits,
   todayKey,
   WEEKDAY_NAMES,
@@ -17,7 +20,9 @@ import {
 } from "@unimate/shared";
 import { AppText, Loading, Segmented } from "@/components/ui";
 import { WorkCard } from "@/components/work-card";
+import { fetchMySessions, type MySession } from "@/lib/classes";
 import { notify } from "@/lib/dialogs";
+import { refreshReminders } from "@/lib/phone-notifications";
 import { useColors, type Colors } from "@/lib/theme";
 import { fetchMyWork, setWorkStatus, type WorkItem } from "@/lib/work";
 import { useUserId } from "@/providers/session";
@@ -32,16 +37,18 @@ function weekOf(key: DayKey): DayKey[] {
   return Array.from({ length: 7 }, (_, i) => addDays(start, i));
 }
 
-/** Dot color for a day's item: overdue red, done gray, otherwise primary. */
+/** Dot color for a day's item: overdue red, done gray, else the class color (personal tasks: primary). */
 function dotColor(c: Colors, item: WorkItem) {
   if (item.status === "done") return c.border;
-  return item.due.state === "overdue" ? c.danger : c.primary;
+  if (item.due.state === "overdue") return c.danger;
+  return item.kind === "assignment" ? classColorHex(item.classColor) : c.primary;
 }
 
 export default function CalendarScreen() {
   const c = useColors();
   const userId = useUserId();
   const [items, setItems] = useState<WorkItem[] | null>(null);
+  const [sessions, setSessions] = useState<MySession[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [view, setView] = useState<CalendarView>("month");
   const [today, setToday] = useState<DayKey>(() => todayKey());
@@ -50,7 +57,9 @@ export default function CalendarScreen() {
 
   const load = useCallback(async () => {
     try {
-      setItems(await fetchMyWork());
+      const [work, mySessions] = await Promise.all([fetchMyWork(), fetchMySessions()]);
+      setItems(work);
+      setSessions(mySessions);
       setToday(todayKey());
     } catch {
       notify("خطا", "بارگذاری کارها انجام نشد.");
@@ -71,6 +80,8 @@ export default function CalendarScreen() {
     swap(status);
     try {
       await setWorkStatus(item, status, userId);
+      // A done assignment no longer needs its deadline reminder (and vice versa).
+      refreshReminders(userId);
     } catch {
       swap(previous);
       notify("ذخیره نشد", "وضعیت ذخیره نشد. دوباره تلاش کن.");
@@ -79,10 +90,17 @@ export default function CalendarScreen() {
 
   if (!items) return <Loading />;
 
-  const classes = [...new Map(items.flatMap((i) => (i.kind === "assignment" ? [[i.classId, i.courseName] as const] : []))).entries()];
+  // Filter chips: every class with assignments or sessions.
+  const classes = [
+    ...new Map([
+      ...items.flatMap((i) => (i.kind === "assignment" ? [[i.classId, i.courseName] as const] : [])),
+      ...sessions.map((s) => [s.class_id, s.courseName] as const),
+    ]).entries(),
+  ];
   const filtered = items.filter((i) =>
     source === "all" ? true : source === "personal" ? i.kind === "task" : i.kind === "assignment" && i.classId === source,
   );
+  const shownSessions = source === "all" ? sessions : sessions.filter((s) => s.class_id === source);
   const byDay = new Map<DayKey, WorkItem[]>();
   for (const item of filtered) {
     if (!item.dueAt) continue;
@@ -196,13 +214,16 @@ export default function CalendarScreen() {
                 {days.map((day) => {
                   const inMonth = day >= month.first && day <= month.last;
                   const dayItems = byDay.get(day) ?? [];
+                  const daySessions = sessionsOnDay(shownSessions, day);
                   const isSelected = day === selected;
                   const isToday = day === today;
                   return (
                     <Pressable
                       key={day}
                       role="button"
-                      aria-label={`${formatDayTitle(day)}${dayItems.length ? ` — ${toFaDigits(dayItems.length)} کار` : ""}`}
+                      aria-label={`${formatDayTitle(day)}${daySessions.length ? ` — ${toFaDigits(daySessions.length)} جلسه` : ""}${
+                        dayItems.length ? ` — ${toFaDigits(dayItems.length)} کار` : ""
+                      }`}
                       aria-selected={isSelected}
                       onPress={() => setSelected(day)}
                       style={{
@@ -237,8 +258,15 @@ export default function CalendarScreen() {
                           {toFaDigits(jalaliOfKey(day).day)}
                         </AppText>
                       </View>
+                      {/* Hollow dots = class sessions, filled = work; three at most. */}
                       <View style={{ flexDirection: "row", gap: 2, height: 5 }}>
-                        {dayItems.slice(0, 3).map((item) => (
+                        {daySessions.slice(0, 3).map((s) => (
+                          <View
+                            key={s.id}
+                            style={{ width: 5, height: 5, borderRadius: 3, borderWidth: 1.2, borderColor: classColorHex(s.color) }}
+                          />
+                        ))}
+                        {dayItems.slice(0, Math.max(0, 3 - daySessions.length)).map((item) => (
                           <View
                             key={`${item.kind}-${item.id}`}
                             style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: dotColor(c, item) }}
@@ -251,11 +279,24 @@ export default function CalendarScreen() {
               </View>
             ))}
           </View>
-          <DayAgenda day={selected} today={today} items={byDay.get(selected) ?? []} renderCards={renderCards} />
+          <DayAgenda
+            day={selected}
+            today={today}
+            items={byDay.get(selected) ?? []}
+            sessions={sessionsOnDay(shownSessions, selected)}
+            renderCards={renderCards}
+          />
         </>
       ) : (
         week.map((day) => (
-          <DayAgenda key={day} day={day} today={today} items={byDay.get(day) ?? []} renderCards={renderCards} />
+          <DayAgenda
+            key={day}
+            day={day}
+            today={today}
+            items={byDay.get(day) ?? []}
+            sessions={sessionsOnDay(shownSessions, day)}
+            renderCards={renderCards}
+          />
         ))
       )}
 
@@ -272,11 +313,13 @@ function DayAgenda({
   day,
   today,
   items,
+  sessions,
   renderCards,
 }: {
   day: DayKey;
   today: DayKey;
   items: WorkItem[];
+  sessions: MySession[];
   renderCards: (items: WorkItem[]) => React.ReactNode;
 }) {
   const c = useColors();
@@ -294,12 +337,36 @@ function DayAgenda({
           </View>
         ) : null}
       </View>
+      {sessions.map((s) => (
+        <Pressable
+          key={s.id}
+          role="button"
+          onPress={() => router.push(`/classes/${s.class_id}`)}
+          style={{
+            backgroundColor: c.surface,
+            borderColor: c.border,
+            borderWidth: 1,
+            borderStartWidth: 5,
+            borderStartColor: classColorHex(s.color),
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+          }}
+        >
+          <AppText weight="bold" size={14}>
+            {s.courseName}
+          </AppText>
+          <AppText size={13} tone="muted">
+            {describeSession(s, false)}
+          </AppText>
+        </Pressable>
+      ))}
       {items.length ? (
         renderCards(items)
-      ) : (
+      ) : sessions.length ? null : (
         <View style={{ backgroundColor: c.surface, borderRadius: 10, padding: 12 }}>
           <AppText size={13} tone="muted">
-            مهلتی برای این روز ثبت نشده.
+            برنامه‌ای برای این روز ثبت نشده.
           </AppText>
         </View>
       )}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import { requireUser } from "@/lib/auth";
-import { PasswordForm, ProfileForm } from "./profile-forms";
+import { PasswordForm, ProfileForm, ReminderForm } from "./profile-forms";
 
 export const metadata: Metadata = { title: "پروفایل" };
 
@@ -27,6 +27,16 @@ async function ProfileSections() {
           <span dir="ltr">{user.email}</span>
         </div>
         <ProfileForm fullName={user.profile.full_name} university={user.profile.university} />
+      </Card>
+
+      <Card
+        title="یادآوری‌ها"
+        description="قبل از شروع جلسه‌های کلاس‌هایت و قبل از مهلت تکالیفی که تمامشان نکرده‌ای، اعلان می‌گیری."
+      >
+        <ReminderForm
+          classMinutes={user.profile.class_reminder_minutes}
+          deadlineHours={user.profile.deadline_reminder_hours}
+        />
       </Card>
 
       {user.isOAuthOnly ? (

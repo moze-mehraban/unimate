@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BackLink } from "@/components/icons";
 import { ActionButton } from "@/components/ui";
-import { getClassOrNotFound } from "@/lib/data/classes";
-import { deleteClass, leaveClass, updateClass } from "../../actions";
+import { describeSession, type ClassColor } from "@unimate/shared";
+import { getClassOrNotFound, getClassSessions } from "@/lib/data/classes";
+import { addSession, deleteClass, deleteSession, leaveClass, updateClass } from "../../actions";
 import { ClassForm } from "../../class-form";
+import { ColorPicker } from "./color-picker";
+import { SessionForm } from "./session-form";
 
 export const metadata: Metadata = { title: "تنظیمات کلاس" };
 
@@ -21,6 +24,7 @@ export default function ClassSettingsPage({ params }: PageProps<"/classes/[class
 async function Settings({ params }: { params: Promise<{ classId: string }> }) {
   const { classId } = await params;
   const cls = await getClassOrNotFound(classId);
+  const sessions = cls.isOwner ? await getClassSessions(cls.id) : [];
 
   return (
     <>
@@ -38,6 +42,39 @@ async function Settings({ params }: { params: Promise<{ classId: string }> }) {
               initial={{ course_name: cls.course_name, instructor_name: cls.instructor_name, term: cls.term }}
               submitLabel="ذخیرهٔ تغییرات"
             />
+          </section>
+
+          <section className="rounded-2xl border border-border bg-surface p-6">
+            <h2 className="font-bold">رنگ کلاس</h2>
+            <p className="mt-1 mb-4 text-sm text-muted">در تقویم و فهرست کارها، تکالیف و جلسه‌های این کلاس با این رنگ نشان داده می‌شوند.</p>
+            <ColorPicker classId={cls.id} color={cls.color as ClassColor} />
+          </section>
+
+          <section className="rounded-2xl border border-border bg-surface p-6">
+            <h2 className="font-bold">زمان و مکان برگزاری</h2>
+            <p className="mt-1 mb-4 text-sm text-muted">
+              جلسه‌های هفتگی کلاس (به وقت تهران). در تقویم همهٔ اعضا نشان داده می‌شوند و قبل از شروع برایشان یادآوری می‌رود.
+            </p>
+            {sessions.length ? (
+              <ul className="mb-5 flex flex-col divide-y divide-border rounded-xl border border-border">
+                {sessions.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                    <span>{describeSession(s)}</span>
+                    <ActionButton
+                      action={deleteSession.bind(null, s.id)}
+                      tone="danger"
+                      pendingText="…"
+                      confirmText="این جلسه از برنامهٔ کلاس حذف شود؟"
+                    >
+                      حذف
+                    </ActionButton>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mb-5 rounded-xl bg-background p-4 text-sm text-muted">هنوز جلسه‌ای ثبت نشده.</p>
+            )}
+            <SessionForm action={addSession.bind(null, cls.id)} />
           </section>
 
           <DangerZone

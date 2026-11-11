@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
+import { classColorHex, describeSession, formatClockFa, sessionsOnDay } from "@unimate/shared";
 import { ChevronBackIcon, ChevronForwardIcon } from "@/components/icons";
 import { WorkFilterBar } from "@/components/work-filter-bar";
 import { WorkRow } from "@/components/work-row";
@@ -18,6 +19,7 @@ import {
   weekDays,
   type DayKey,
 } from "@/lib/calendar";
+import { getMySessions, type MySession } from "@/lib/data/classes";
 import { getMyWork, type WorkItem } from "@/lib/data/my-work";
 import { formatNumber } from "@/lib/format";
 import { PRIORITY_LABEL } from "@/lib/labels";
@@ -46,11 +48,13 @@ async function CalendarView({ searchParams }: { searchParams: Promise<SearchPara
   const params = await searchParams;
   const view: View = params.view === "week" ? "week" : "month";
   const filters = parseWorkFilters(params);
-  const all = await getMyWork();
+  const [all, allSessions] = await Promise.all([getMyWork(), getMySessions()]);
   // Read the clock only after request-time data (the session), or prerendering fails.
   const today = todayKey();
   const anchor = isDayKey(params.d) ? params.d : today;
   const items = filterWork(all, filters);
+  // Sessions follow the class filter; "personal tasks only" hides them.
+  const sessions = filters.source === "all" ? allSessions : allSessions.filter((s) => s.class_id === filters.source);
 
   const byDay = new Map<DayKey, WorkItem[]>();
   for (const item of items) {
@@ -120,14 +124,15 @@ async function CalendarView({ searchParams }: { searchParams: Promise<SearchPara
             today={today}
             selected={anchor}
             byDay={byDay}
+            sessions={sessions}
             dayHref={(d) => href({ d })}
           />
-          <DayAgenda day={anchor} today={today} items={byDay.get(anchor) ?? []} />
+          <DayAgenda day={anchor} today={today} items={byDay.get(anchor) ?? []} sessions={sessionsOnDay(sessions, anchor)} />
         </>
       ) : (
         <div className="flex flex-col gap-4">
           {week.map((day) => (
-            <DayAgenda key={day} day={day} today={today} items={byDay.get(day) ?? []} />
+            <DayAgenda key={day} day={day} today={today} items={byDay.get(day) ?? []} sessions={sessionsOnDay(sessions, day)} />
           ))}
         </div>
       )}
@@ -165,6 +170,7 @@ function MonthGrid({
   today,
   selected,
   byDay,
+  sessions,
   dayHref,
 }: {
   weeks: DayKey[][];
@@ -173,6 +179,7 @@ function MonthGrid({
   today: DayKey;
   selected: DayKey;
   byDay: Map<DayKey, WorkItem[]>;
+  sessions: MySession[];
   dayHref: (day: DayKey) => string;
 }) {
   return (
@@ -190,6 +197,11 @@ function MonthGrid({
           {days.map((day) => {
             const inMonth = day >= monthFirst && day <= monthLast;
             const dayItems = byDay.get(day) ?? [];
+            const daySessions = sessionsOnDay(sessions, day);
+            // Sessions first, then work, sharing the cell's space.
+            const shownSessions = daySessions.slice(0, CELL_LIMIT);
+            const shownItems = dayItems.slice(0, CELL_LIMIT - shownSessions.length);
+            const hidden = daySessions.length + dayItems.length - shownSessions.length - shownItems.length;
             const open = dayItems.filter((i) => i.status !== "done");
             const hasOverdue = open.some((i) => i.due.state === "overdue");
             return (
@@ -198,7 +210,9 @@ function MonthGrid({
                 href={dayHref(day)}
                 scroll={false}
                 aria-current={day === selected ? "date" : undefined}
-                aria-label={`${formatDayTitle(day)}${dayItems.length ? ` — ${formatNumber(dayItems.length)} کار` : ""}`}
+                aria-label={`${formatDayTitle(day)}${daySessions.length ? ` — ${formatNumber(daySessions.length)} جلسه` : ""}${
+                  dayItems.length ? ` — ${formatNumber(dayItems.length)} کار` : ""
+                }`}
                 className={`flex min-h-16 flex-col gap-1 border-s border-border p-1 first:border-s-0 sm:min-h-24 sm:p-1.5 ${
                   day === selected ? "bg-primary/5 ring-2 ring-primary ring-inset" : "hover:bg-background"
                 } ${inMonth ? "" : "opacity-40"}`}
@@ -211,24 +225,45 @@ function MonthGrid({
                   {formatDayNumber(day)}
                 </span>
 
-                {/* Phones: one dot per day, red if anything is overdue. */}
-                {dayItems.length ? (
-                  <span
-                    className={`mx-auto size-1.5 rounded-full sm:hidden ${
-                      hasOverdue ? "bg-danger" : open.length ? "bg-primary" : "bg-border"
-                    }`}
-                  />
+                {/* Phones: a hollow dot for class sessions (class color) and a filled one for
+                    work (red if anything is overdue). */}
+                {daySessions.length || dayItems.length ? (
+                  <span className="mx-auto flex gap-0.5 sm:hidden">
+                    {daySessions.length ? (
+                      <span
+                        className="size-1.5 rounded-full border"
+                        style={{ borderColor: classColorHex(daySessions[0].color) }}
+                      />
+                    ) : null}
+                    {dayItems.length ? (
+                      <span
+                        className={`size-1.5 rounded-full ${hasOverdue ? "bg-danger" : open.length ? "bg-primary" : "bg-border"}`}
+                      />
+                    ) : null}
+                  </span>
                 ) : null}
 
                 <ul className="hidden flex-col gap-0.5 sm:flex">
-                  {dayItems.slice(0, CELL_LIMIT).map((item) => (
+                  {shownSessions.map((s) => (
+                    <li key={s.id}>
+                      <span
+                        title={describeSession(s, false)}
+                        className="flex items-center gap-1 rounded px-1 py-0.5 text-[11px] leading-4"
+                        style={{ color: classColorHex(s.color) }}
+                      >
+                        <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />
+                        <span className="truncate">
+                          {formatClockFa(s.start_time)} {s.courseName}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                  {shownItems.map((item) => (
                     <li key={`${item.kind}-${item.id}`}>
                       <Chip item={item} />
                     </li>
                   ))}
-                  {dayItems.length > CELL_LIMIT ? (
-                    <li className="px-1 text-[11px] text-muted">+{formatNumber(dayItems.length - CELL_LIMIT)} مورد دیگر</li>
-                  ) : null}
+                  {hidden > 0 ? <li className="px-1 text-[11px] text-muted">+{formatNumber(hidden)} مورد دیگر</li> : null}
                 </ul>
               </Link>
             );
@@ -239,39 +274,73 @@ function MonthGrid({
   );
 }
 
+/** A work item in a month cell: class color for assignments, priority color for personal tasks. */
 function Chip({ item }: { item: WorkItem }) {
-  const style =
-    item.status === "done"
-      ? "bg-background text-muted line-through"
-      : item.due.state === "overdue"
-        ? "bg-danger text-primary-foreground"
+  const done = item.status === "done";
+  const overdue = !done && item.due.state === "overdue";
+  const classTint = !done && !overdue && item.kind === "assignment" ? classColorHex(item.classColor) : null;
+  const style = done
+    ? "bg-background text-muted line-through"
+    : overdue
+      ? "bg-danger text-primary-foreground"
+      : classTint
+        ? ""
         : PRIORITY_LABEL[item.priority].className;
   return (
     <span
       title={`${item.dueAt ? formatTime(item.dueAt) : ""} ${item.title}`}
       className={`block truncate rounded px-1 py-0.5 text-[11px] leading-4 ${style}`}
+      // "1f" ≈ 12% alpha: a light tint of the class color behind its text.
+      style={classTint ? { backgroundColor: `${classTint}1f`, color: classTint } : undefined}
     >
       {item.title}
     </span>
   );
 }
 
-function DayAgenda({ day, today, items }: { day: DayKey; today: DayKey; items: WorkItem[] }) {
+function DayAgenda({
+  day,
+  today,
+  items,
+  sessions,
+}: {
+  day: DayKey;
+  today: DayKey;
+  items: WorkItem[];
+  sessions: MySession[];
+}) {
   return (
     <div>
       <h3 className="mb-2 flex items-center gap-2 text-sm font-bold">
         {formatDayTitle(day)}
         {day === today ? <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">امروز</span> : null}
+        {sessions.length ? <span className="text-xs font-normal text-muted">{formatNumber(sessions.length)} جلسه</span> : null}
         {items.length ? <span className="text-xs font-normal text-muted">{formatNumber(items.length)} کار</span> : null}
       </h3>
+      {sessions.length ? (
+        <ul className="mb-2 flex flex-col gap-2">
+          {sessions.map((s) => (
+            <li key={s.id}>
+              <Link
+                href={`/classes/${s.class_id}`}
+                className="flex flex-wrap items-center gap-x-3 rounded-xl border border-s-4 border-border px-4 py-2.5 text-sm hover:bg-background"
+                style={{ borderInlineStartColor: classColorHex(s.color) }}
+              >
+                <span className="font-bold">{s.courseName}</span>
+                <span className="text-muted">{describeSession(s, false)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {items.length ? (
         <ul className="flex flex-col gap-2">
           {items.map((item) => (
             <WorkRow key={`${item.kind}-${item.id}`} item={item} />
           ))}
         </ul>
-      ) : (
-        <p className="rounded-xl bg-background px-4 py-3 text-sm text-muted">مهلتی برای این روز ثبت نشده.</p>
+      ) : sessions.length ? null : (
+        <p className="rounded-xl bg-background px-4 py-3 text-sm text-muted">برنامه‌ای برای این روز ثبت نشده.</p>
       )}
     </div>
   );

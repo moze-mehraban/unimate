@@ -1,11 +1,12 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScrollView } from "react-native";
-import { GENERIC_ERROR } from "@unimate/shared";
+import { GENERIC_ERROR, type ClassSession } from "@unimate/shared";
 import { ClassForm } from "@/components/class-form";
 import { ComingSoon } from "@/components/coming-soon";
+import { ColorPicker, ScheduleEditor } from "@/components/schedule-editor";
 import { AppText, Button, Card, Loading } from "@/components/ui";
-import { fetchClass, type ClassDetail } from "@/lib/classes";
+import { fetchClass, fetchClassSessions, type ClassDetail } from "@/lib/classes";
 import { confirmAsync, notify } from "@/lib/dialogs";
 import { supabase } from "@/lib/supabase";
 import { useUserId } from "@/providers/session";
@@ -14,10 +15,16 @@ export default function ClassSettingsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = useUserId();
   const [cls, setCls] = useState<ClassDetail | null | undefined>(undefined);
+  const [sessions, setSessions] = useState<ClassSession[]>([]);
+
+  const loadSessions = useCallback(() => {
+    fetchClassSessions(id).then(setSessions, () => notify("خطا", "بارگذاری برنامهٔ کلاس انجام نشد."));
+  }, [id]);
 
   useEffect(() => {
     fetchClass(id, userId).then(setCls);
-  }, [id, userId]);
+    loadSessions();
+  }, [id, userId, loadSessions]);
 
   if (cls === undefined) return <Loading />;
   if (cls === null)
@@ -62,6 +69,8 @@ export default function ClassSettingsScreen() {
           }}
         />
       </Card>
+      <ColorPicker classId={cls.id} color={cls.color} onChanged={() => fetchClass(id, userId).then(setCls)} />
+      <ScheduleEditor classId={cls.id} sessions={sessions} onChanged={loadSessions} />
       <Card style={{ gap: 10, borderColor: "transparent" }}>
         <AppText weight="bold" tone="danger">
           حذف کلاس

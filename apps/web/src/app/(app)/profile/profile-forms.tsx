@@ -1,10 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
-import { PASSWORD_MIN_LENGTH, PROFILE_LIMITS } from "@unimate/shared";
-import { Alert, Field, SubmitButton } from "@/components/ui";
+import { CLASS_REMINDER_OPTIONS, DEADLINE_REMINDER_OPTIONS, PASSWORD_MIN_LENGTH, PROFILE_LIMITS } from "@unimate/shared";
+import { Alert, Field, SelectField, SubmitButton } from "@/components/ui";
 import type { FormState } from "@/lib/forms";
-import { updatePassword, updateProfile } from "./actions";
+import { updatePassword, updateProfile, updateReminders } from "./actions";
 
 export function ProfileForm({ fullName, university }: { fullName: string; university: string }) {
   const [state, action] = useActionState<FormState, FormData>(updateProfile, {});
@@ -64,6 +64,36 @@ export function PasswordForm({ redirectToDashboard = false }: { redirectToDashbo
       />
       <SubmitButton pendingText="در حال ذخیره…" className="self-start">
         تغییر رمز عبور
+      </SubmitButton>
+    </form>
+  );
+}
+
+export function ReminderForm({ classMinutes, deadlineHours }: { classMinutes: number | null; deadlineHours: number | null }) {
+  const [state, action] = useActionState<FormState, FormData>(updateReminders, {});
+
+  return (
+    <form action={action} className="flex flex-col gap-4">
+      {state.error ? <Alert kind="error">{state.error}</Alert> : null}
+      {state.success ? <Alert kind="success">{state.success}</Alert> : null}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SelectField label="قبل از شروع کلاس" name="class_reminder_minutes" defaultValue={classMinutes ?? ""}>
+          {CLASS_REMINDER_OPTIONS.map((o) => (
+            <option key={o.label} value={o.value ?? ""}>
+              {o.label}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField label="قبل از مهلت تکلیف" name="deadline_reminder_hours" defaultValue={deadlineHours ?? ""}>
+          {DEADLINE_REMINDER_OPTIONS.map((o) => (
+            <option key={o.label} value={o.value ?? ""}>
+              {o.label}
+            </option>
+          ))}
+        </SelectField>
+      </div>
+      <SubmitButton pendingText="در حال ذخیره…" className="self-start">
+        ذخیرهٔ یادآوری‌ها
       </SubmitButton>
     </form>
   );

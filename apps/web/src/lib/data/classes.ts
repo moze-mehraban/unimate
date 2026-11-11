@@ -1,13 +1,13 @@
 import "server-only";
 import { notFound } from "next/navigation";
-import type { ClassRow, MemberRole } from "@unimate/shared";
+import type { ClassRow, ClassSession, MemberRole } from "@unimate/shared";
 import { requireUser } from "../auth";
 import { isUuid } from "../forms";
 import { createClient } from "../supabase/server";
 
 // All reads go through RLS: a user only ever gets rows they are allowed to see.
 
-export type ClassSummary = Pick<ClassRow, "id" | "course_name" | "instructor_name" | "term"> & {
+export type ClassSummary = Pick<ClassRow, "id" | "course_name" | "instructor_name" | "term" | "color"> & {
   isOwner: boolean;
   memberCount: number;
 };
@@ -17,7 +17,7 @@ export async function getMyClasses(): Promise<ClassSummary[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("classes")
-    .select("id, course_name, instructor_name, term, owner_id, created_at, class_members(count)")
+    .select("id, course_name, instructor_name, term, color, owner_id, created_at, class_members(count)")
     .order("created_at", { ascending: false });
   if (error) throw error;
 
@@ -26,6 +26,7 @@ export async function getMyClasses(): Promise<ClassSummary[]> {
     course_name: c.course_name,
     instructor_name: c.instructor_name,
     term: c.term,
+    color: c.color,
     isOwner: c.owner_id === user.id,
     memberCount: c.class_members[0]?.count ?? 0,
   }));
@@ -139,4 +140,31 @@ export async function getInvitePreview(token: string) {
   const { data, error } = await supabase.rpc("get_invite_preview", { p_token: token });
   if (error) throw error;
   return data[0] ?? null;
+}
+
+/** A class's weekly sessions, by weekday then start time (members only, via RLS). */
+export async function getClassSessions(classId: string): Promise<ClassSession[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("class_sessions")
+    .select("*")
+    .eq("class_id", classId)
+    .order("weekday")
+    .order("start_time");
+  if (error) throw error;
+  return data;
+}
+
+export type MySession = ClassSession & { courseName: string; color: string };
+
+/** Weekly sessions of every class I'm in, for the calendar. */
+export async function getMySessions(): Promise<MySession[]> {
+  await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("class_sessions")
+    .select("*, classes(course_name, color)")
+    .order("start_time");
+  if (error) throw error;
+  return data.map(({ classes, ...s }) => ({ ...s, courseName: classes?.course_name ?? "", color: classes?.color ?? "indigo" }));
 }

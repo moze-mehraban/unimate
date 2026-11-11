@@ -2,6 +2,7 @@ import {
   CLASS_LIMITS,
   describeDue,
   type ClassRow,
+  type ClassSession,
   type DueState,
   type MemberRole,
   type Priority,
@@ -12,7 +13,7 @@ import { supabase } from "./supabase";
 // Reads mirror the web data layer (apps/web/src/lib/data/classes.ts, assignments.ts).
 // RLS decides what each user gets back; nothing here is a security boundary.
 
-export type ClassSummary = Pick<ClassRow, "id" | "course_name" | "instructor_name" | "term"> & {
+export type ClassSummary = Pick<ClassRow, "id" | "course_name" | "instructor_name" | "term" | "color"> & {
   isOwner: boolean;
   memberCount: number;
 };
@@ -20,7 +21,7 @@ export type ClassSummary = Pick<ClassRow, "id" | "course_name" | "instructor_nam
 export async function fetchMyClasses(userId: string): Promise<ClassSummary[]> {
   const { data, error } = await supabase
     .from("classes")
-    .select("id, course_name, instructor_name, term, owner_id, created_at, class_members(count)")
+    .select("id, course_name, instructor_name, term, color, owner_id, created_at, class_members(count)")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data.map((c) => ({
@@ -28,6 +29,7 @@ export async function fetchMyClasses(userId: string): Promise<ClassSummary[]> {
     course_name: c.course_name,
     instructor_name: c.instructor_name,
     term: c.term,
+    color: c.color,
     isOwner: c.owner_id === userId,
     memberCount: c.class_members[0]?.count ?? 0,
   }));
@@ -192,4 +194,26 @@ export async function fetchInvites(classId: string): Promise<InviteLink[]> {
           ? "used_up"
           : "active",
   }));
+}
+
+// --- Weekly sessions --------------------------------------------------------------
+
+export async function fetchClassSessions(classId: string): Promise<ClassSession[]> {
+  const { data, error } = await supabase
+    .from("class_sessions")
+    .select("*")
+    .eq("class_id", classId)
+    .order("weekday")
+    .order("start_time");
+  if (error) throw error;
+  return data;
+}
+
+export type MySession = ClassSession & { courseName: string; color: string };
+
+/** Sessions of every class I'm in (RLS: members only), for the calendar. */
+export async function fetchMySessions(): Promise<MySession[]> {
+  const { data, error } = await supabase.from("class_sessions").select("*, classes(course_name, color)").order("start_time");
+  if (error) throw error;
+  return data.map(({ classes, ...s }) => ({ ...s, courseName: classes?.course_name ?? "", color: classes?.color ?? "indigo" }));
 }

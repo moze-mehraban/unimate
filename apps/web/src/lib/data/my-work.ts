@@ -17,7 +17,7 @@ type WorkItemBase = {
 };
 
 export type WorkItem =
-  | (WorkItemBase & { kind: "assignment"; classId: string; courseName: string })
+  | (WorkItemBase & { kind: "assignment"; classId: string; courseName: string; classColor: string })
   | (WorkItemBase & { kind: "task" });
 
 /** Assignments from all my classes (with my personal status) plus my personal tasks. */
@@ -26,7 +26,7 @@ export async function getMyWork(): Promise<WorkItem[]> {
   const supabase = await createClient();
   const [assignments, tasks] = await Promise.all([
     // security_invoker view: RLS limits it to classes I'm a member of.
-    supabase.from("my_assignments").select("id, class_id, course_name, title, description, due_at, priority, status"),
+    supabase.from("my_assignments").select("id, class_id, course_name, class_color, title, description, due_at, priority, status"),
     supabase.from("personal_tasks").select("id, title, description, due_at, priority, status"),
   ]);
   if (assignments.error) throw assignments.error;
@@ -39,6 +39,7 @@ export async function getMyWork(): Promise<WorkItem[]> {
       id: a.id,
       classId: a.class_id,
       courseName: a.course_name,
+      classColor: a.class_color,
       title: a.title,
       description: a.description,
       dueAt: a.due_at,

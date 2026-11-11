@@ -171,16 +171,36 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"classes": {
+                },"class_sessions": {
                   Row: {
-                    "course_name": string,"created_at": string,"id": string,"instructor_name": string,"owner_id": string,"term": string,"updated_at": string
+                    "class_id": string,"created_at": string,"end_time": string,"id": string,"room": string,"start_time": string,"weekday": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "course_name": string,"created_at"?: string,"id"?: string,"instructor_name"?: string,"owner_id"?: string,"term"?: string,"updated_at"?: string
+                    "class_id": string,"created_at"?: string,"end_time": string,"id"?: string,"room"?: string,"start_time": string,"weekday": number
                   }
                   Update: {
-                    "course_name"?: string,"created_at"?: string,"id"?: string,"instructor_name"?: string,"owner_id"?: string,"term"?: string,"updated_at"?: string
+                    "class_id"?: string,"created_at"?: string,"end_time"?: string,"id"?: string,"room"?: string,"start_time"?: string,"weekday"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "class_sessions_class_id_fkey"
+      columns: ["class_id"]
+isOneToOne: false
+      referencedRelation: "classes"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"classes": {
+                  Row: {
+                    "color": string,"course_name": string,"created_at": string,"id": string,"instructor_name": string,"owner_id": string,"term": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "color"?: string,"course_name": string,"created_at"?: string,"id"?: string,"instructor_name"?: string,"owner_id"?: string,"term"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "color"?: string,"course_name"?: string,"created_at"?: string,"id"?: string,"instructor_name"?: string,"owner_id"?: string,"term"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -277,24 +297,64 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "avatar_url": string | null,"created_at": string,"full_name": string,"id": string,"university": string,"updated_at": string
+                    "avatar_url": string | null,"class_reminder_minutes": number | null,"created_at": string,"deadline_reminder_hours": number | null,"full_name": string,"id": string,"university": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "avatar_url"?: string | null,"created_at"?: string,"full_name"?: string,"id": string,"university"?: string,"updated_at"?: string
+                    "avatar_url"?: string | null,"class_reminder_minutes"?: number | null,"created_at"?: string,"deadline_reminder_hours"?: number | null,"full_name"?: string,"id": string,"university"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "avatar_url"?: string | null,"created_at"?: string,"full_name"?: string,"id"?: string,"university"?: string,"updated_at"?: string
+                    "avatar_url"?: string | null,"class_reminder_minutes"?: number | null,"created_at"?: string,"deadline_reminder_hours"?: number | null,"full_name"?: string,"id"?: string,"university"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     
+                  ]
+                },"push_tokens": {
+                  Row: {
+                    "platform": string,"token": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "platform"?: string,"token": string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Update: {
+                    "platform"?: string,"token"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "push_tokens_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"reminder_log": {
+                  Row: {
+                    "kind": string,"occurs_at": string,"ref_id": string,"sent_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "kind": string,"occurs_at": string,"ref_id": string,"sent_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "kind"?: string,"occurs_at"?: string,"ref_id"?: string,"sent_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "reminder_log_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
                   ]
                 }
           }
           Views: {
             "my_assignments": {
                   Row: {
-                    "class_id": string,"course_name": string,"created_at": string,"created_by": string | null,"description": string,"due_at": string | null,"id": string,"priority": Database["public"]['Enums']["priority_level"],"status": Database["public"]['Enums']["task_status"] | null,"title": string,"updated_at": string
+                    "class_color": string,"class_id": string,"course_name": string,"created_at": string,"created_by": string | null,"description": string,"due_at": string | null,"id": string,"priority": Database["public"]['Enums']["priority_level"],"status": Database["public"]['Enums']["task_status"] | null,"title": string,"updated_at": string
                   }
                   ComputedFields: never
                   Relationships: [
@@ -329,15 +389,27 @@ isOneToOne: false
 "is_class_owner":
 { Args: { "p_class_id": string }; Returns: boolean
                            },
+"random_class_color":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"register_push_token":
+{ Args: { "p_platform"?: string,"p_token": string }; Returns: undefined
+                           },
 "request_to_join":
 { Args: { "p_token": string }; Returns: string
                            },
 "respond_to_join_request":
 { Args: { "p_approve": boolean,"p_request_id": string }; Returns: undefined
+                           },
+"send_due_reminders":
+{ Args: { "p_now"?: string }; Returns: number
+                           },
+"unregister_push_token":
+{ Args: { "p_token": string }; Returns: undefined
                            }
           }
           Enums: {
-            "join_request_status": "pending"|"approved"|"rejected","member_role": "owner"|"member","notification_type": "assignment_created"|"join_request_received"|"join_request_approved"|"join_request_rejected"|"assignment_reported","priority_level": "low"|"medium"|"high","report_status": "open"|"resolved"|"dismissed","task_status": "todo"|"in_progress"|"done"
+            "join_request_status": "pending"|"approved"|"rejected","member_role": "owner"|"member","notification_type": "assignment_created"|"join_request_received"|"join_request_approved"|"join_request_rejected"|"assignment_reported"|"class_starting"|"assignment_due_soon","priority_level": "low"|"medium"|"high","report_status": "open"|"resolved"|"dismissed","task_status": "todo"|"in_progress"|"done"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -457,7 +529,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "join_request_status": ["pending", "approved", "rejected"],"member_role": ["owner", "member"],"notification_type": ["assignment_created", "join_request_received", "join_request_approved", "join_request_rejected", "assignment_reported"],"priority_level": ["low", "medium", "high"],"report_status": ["open", "resolved", "dismissed"],"task_status": ["todo", "in_progress", "done"]
+            "join_request_status": ["pending", "approved", "rejected"],"member_role": ["owner", "member"],"notification_type": ["assignment_created", "join_request_received", "join_request_approved", "join_request_rejected", "assignment_reported", "class_starting", "assignment_due_soon"],"priority_level": ["low", "medium", "high"],"report_status": ["open", "resolved", "dismissed"],"task_status": ["todo", "in_progress", "done"]
           }
         }
 } as const

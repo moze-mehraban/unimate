@@ -2,7 +2,14 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, View } from "react-native";
-import { GENERIC_ERROR, REPORT_REASON_LIMIT, type TaskStatus } from "@unimate/shared";
+import {
+  classColorHex,
+  describeSession,
+  GENERIC_ERROR,
+  REPORT_REASON_LIMIT,
+  type ClassSession,
+  type TaskStatus,
+} from "@unimate/shared";
 import { AssignmentCard } from "@/components/assignment-card";
 import { ReportsSection, RequestsSection } from "@/components/class-sections";
 import { ComingSoon } from "@/components/coming-soon";
@@ -11,6 +18,7 @@ import { AppText, Card, Loading, Section } from "@/components/ui";
 import {
   fetchClass,
   fetchClassAssignments,
+  fetchClassSessions,
   fetchOpenReports,
   fetchPendingRequests,
   type AssignmentReport,
@@ -19,6 +27,7 @@ import {
   type PendingRequest,
 } from "@/lib/classes";
 import { confirmAsync, notify } from "@/lib/dialogs";
+import { refreshReminders } from "@/lib/phone-notifications";
 import { supabase } from "@/lib/supabase";
 import { useColors } from "@/lib/theme";
 import { useClassRealtime } from "@/lib/use-class-realtime";
@@ -27,6 +36,7 @@ import { useUserId } from "@/providers/session";
 type ClassData = {
   cls: ClassDetail;
   assignments: ClassAssignment[];
+  sessions: ClassSession[];
   // Owner only.
   reports: AssignmentReport[];
   requests: PendingRequest[];
@@ -43,12 +53,13 @@ export default function ClassScreen() {
   const load = useCallback(async () => {
     const cls = await fetchClass(id, userId);
     if (!cls) return setData(null);
-    const [assignments, reports, requests] = await Promise.all([
+    const [assignments, sessions, reports, requests] = await Promise.all([
       fetchClassAssignments(cls, userId),
+      fetchClassSessions(cls.id),
       cls.isOwner ? fetchOpenReports(cls.id) : [],
       cls.isOwner ? fetchPendingRequests(cls.id) : [],
     ]);
-    setData({ cls, assignments, reports, requests });
+    setData({ cls, assignments, sessions, reports, requests });
   }, [id, userId]);
 
   useFocusEffect(
@@ -82,7 +93,7 @@ export default function ClassScreen() {
     if (error) {
       notify("ذخیره نشد", "وضعیت ذخیره نشد. دوباره تلاش کن.");
       load();
-    }
+    } else refreshReminders(userId);
   }
 
   async function remove(a: ClassAssignment) {
@@ -133,11 +144,18 @@ export default function ClassScreen() {
           }}
         />
 
-        {cls.instructor_name || cls.term ? (
-          <AppText size={13} tone="muted">
-            {[cls.instructor_name && `استاد: ${cls.instructor_name}`, cls.term].filter(Boolean).join(" · ")}
-          </AppText>
-        ) : null}
+        <View style={{ borderStartWidth: 4, borderStartColor: classColorHex(cls.color), paddingStart: 10, gap: 2 }}>
+          {cls.instructor_name || cls.term ? (
+            <AppText size={13} tone="muted">
+              {[cls.instructor_name && `استاد: ${cls.instructor_name}`, cls.term].filter(Boolean).join(" · ")}
+            </AppText>
+          ) : null}
+          {data.sessions.map((s) => (
+            <AppText key={s.id} size={13}>
+              {describeSession(s)}
+            </AppText>
+          ))}
+        </View>
 
         {/* Owner's to-dos first: pending join requests, then reports. Hidden when empty. */}
         {cls.isOwner && data.requests.length ? <RequestsSection requests={data.requests} onChanged={load} /> : null}

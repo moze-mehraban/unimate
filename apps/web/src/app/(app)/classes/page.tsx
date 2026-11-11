@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { classColorHex } from "@unimate/shared";
 import { buttonStyles } from "@/components/ui";
 import { getMyClasses } from "@/lib/data/classes";
 import { formatNumber } from "@/lib/format";
@@ -45,7 +46,8 @@ async function ClassList() {
         <li key={c.id}>
           <Link
             href={`/classes/${c.id}`}
-            className="flex h-full flex-col gap-3 rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-primary"
+            className="flex h-full flex-col gap-3 rounded-2xl border border-s-4 border-border bg-surface p-5 transition-colors hover:border-primary"
+            style={{ borderInlineStartColor: classColorHex(c.color) }}
           >
             <div className="flex items-start justify-between gap-2">
               <h2 className="font-bold">{c.course_name}</h2>

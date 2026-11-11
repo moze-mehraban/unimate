@@ -6,6 +6,7 @@ import { Fab } from "@/components/fab";
 import { AppText, Banner, Loading, Segmented } from "@/components/ui";
 import { WorkCard } from "@/components/work-card";
 import { notify } from "@/lib/dialogs";
+import { refreshReminders } from "@/lib/phone-notifications";
 import { useColors } from "@/lib/theme";
 import { fetchMyWork, setWorkStatus, type WorkItem } from "@/lib/work";
 import { useUserId } from "@/providers/session";
@@ -48,6 +49,8 @@ export default function MyWorkScreen() {
     setItems((list) => list?.map((i) => (i.id === item.id && i.kind === item.kind ? { ...i, status } : i)) ?? null);
     try {
       await setWorkStatus(item, status, userId);
+      // A done assignment no longer needs its deadline reminder (and vice versa).
+      refreshReminders(userId);
     } catch {
       setItems((list) => list?.map((i) => (i.id === item.id && i.kind === item.kind ? { ...i, status: previous } : i)) ?? null);
       notify("ذخیره نشد", "وضعیت ذخیره نشد. دوباره تلاش کن.");

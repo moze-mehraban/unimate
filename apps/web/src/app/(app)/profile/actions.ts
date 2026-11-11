@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
-import { PASSWORD_MIN_LENGTH, PROFILE_LIMITS } from "@unimate/shared";
+import { CLASS_REMINDER_OPTIONS, DEADLINE_REMINDER_OPTIONS, PASSWORD_MIN_LENGTH, PROFILE_LIMITS } from "@unimate/shared";
 import { createClient } from "@/lib/supabase/server";
 import { authErrorMessage, GENERIC_ERROR } from "@/lib/auth-errors";
 import type { FormState } from "@/lib/forms";
@@ -54,4 +54,30 @@ export async function updatePassword(_prev: FormState, formData: FormData): Prom
 
   if (redirectTo) redirect("/dashboard");
   return { success: "رمز عبور تغییر کرد." };
+}
+
+/** "" = off; otherwise one of the offered values. */
+function readReminder(formData: FormData, key: string, options: { value: number | null }[]): number | null | undefined {
+  const raw = String(formData.get(key) ?? "");
+  if (raw === "") return null;
+  const value = Number(raw);
+  return options.some((o) => o.value === value) ? value : undefined;
+}
+
+export async function updateReminders(_prev: FormState, formData: FormData): Promise<FormState> {
+  const classMinutes = readReminder(formData, "class_reminder_minutes", CLASS_REMINDER_OPTIONS);
+  const deadlineHours = readReminder(formData, "deadline_reminder_hours", DEADLINE_REMINDER_OPTIONS);
+  if (classMinutes === undefined || deadlineHours === undefined) return { error: GENERIC_ERROR };
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) redirect("/login");
+  const { error } = await supabase
+    .from("profiles")
+    .update({ class_reminder_minutes: classMinutes, deadline_reminder_hours: deadlineHours })
+    .eq("id", data.user.id);
+  if (error) return { error: GENERIC_ERROR };
+
+  refresh();
+  return { success: "تنظیمات یادآوری ذخیره شد." };
 }
