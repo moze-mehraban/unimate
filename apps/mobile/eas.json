@@ -1,0 +1,25 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://kahraodhogfjorpqutzb.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_1iaBehn5PflY6ow6ADIAgg_ghyyjwmK",
+        "EXPO_PUBLIC_WEB_URL": "https://unimate.mozemehraban.ir"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://kahraodhogfjorpqutzb.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_1iaBehn5PflY6ow6ADIAgg_ghyyjwmK",
+        "EXPO_PUBLIC_WEB_URL": "https://unimate.mozemehraban.ir"
+      }
+    }
+  }
+}
