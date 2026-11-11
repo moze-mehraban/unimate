@@ -94,3 +94,11 @@ writeFileSync(path.join(web, "icon.svg"), fullIcon(224));
 console.log(path.relative(root, path.join(web, "icon.svg")));
 await png(fullIcon(0), 180, path.join(web, "apple-icon.png"));
 rmSync(path.join(web, "favicon.ico"), { force: true });
+
+// --- Web app manifest (app/manifest.ts) and Web Push notifications (public/sw.js) ---
+const pub = path.join(root, "apps", "web", "public");
+await png(fullIcon(0), 192, path.join(pub, "icon-192.png"));
+await png(fullIcon(0), 512, path.join(pub, "icon-512.png"));
+await png(fullIcon(0, 0.7), 512, path.join(pub, "icon-maskable-512.png"));
+// Android's status-bar badge: white silhouette on transparent.
+await png(glyphOnly(0.95, { mono: true }), 96, path.join(pub, "notification-badge.png"));

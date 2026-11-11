@@ -236,5 +236,34 @@ await ok('push trigger is a no-op without pg_net (event notification still saved
   eq((await as(C, `select count(*)::int c from notifications where type = 'join_request_approved'`))[0].c, 1, 'saved');
 });
 
+// --- Web Push subscriptions ------------------------------------------------------
+const ENDPOINT = 'https://fcm.googleapis.com/fcm/send/test-browser-endpoint';
+const P256DH = 'B'.repeat(87);
+const AUTH = 'a'.repeat(22);
+await ok('user registers a browser subscription and sees only their own', async () => {
+  await as(A, `select register_web_push($1, $2, $3)`, [ENDPOINT, P256DH, AUTH]);
+  eq((await as(A, `select endpoint from web_push_subscriptions`)), [{ endpoint: ENDPOINT }], 'A sees it');
+  eq((await as(C, `select * from web_push_subscriptions`)).length, 0, 'C sees none');
+});
+await rejects('clients cannot write web_push_subscriptions directly', () =>
+  as(C, `insert into web_push_subscriptions (endpoint, p256dh, auth) values ($1, $2, $3)`, [ENDPOINT + '2', P256DH, AUTH]));
+await rejects('endpoint must be https', () => as(A, `select register_web_push($1, $2, $3)`, ['http://evil.test/x', P256DH, AUTH]));
+await ok('same browser signing into another account moves the subscription', async () => {
+  await as(C, `select register_web_push($1, $2, $3)`, [ENDPOINT, P256DH, AUTH]);
+  eq((await as(A, `select * from web_push_subscriptions`)).length, 0, 'A lost it');
+  eq((await as(C, `select count(*)::int c from web_push_subscriptions`))[0].c, 1, 'C has it');
+});
+await ok('unregister only removes your own subscription', async () => {
+  await as(A, `select unregister_web_push($1)`, [ENDPOINT]);
+  eq((await as(C, `select count(*)::int c from web_push_subscriptions`))[0].c, 1, 'A could not remove it');
+  await as(C, `select unregister_web_push($1)`, [ENDPOINT]);
+  eq((await as(C, `select count(*)::int c from web_push_subscriptions`))[0].c, 0, 'C removed it');
+});
+await ok('push trigger runs for reminders too and is a no-op without pg_net', async () => {
+  await as(C, `select register_web_push($1, $2, $3)`, [ENDPOINT, P256DH, AUTH]);
+  await db.query(`insert into notifications (user_id, type, payload) values ($1, 'assignment_due_soon', '{}')`, [C]);
+  eq((await as(C, `select count(*)::int c from notifications where type = 'assignment_due_soon'`))[0].c >= 1, true, 'saved');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

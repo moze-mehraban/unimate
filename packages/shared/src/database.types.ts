@@ -349,6 +349,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"web_push_subscriptions": {
+                  Row: {
+                    "auth": string,"endpoint": string,"p256dh": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "auth": string,"endpoint": string,"p256dh": string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Update: {
+                    "auth"?: string,"endpoint"?: string,"p256dh"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "web_push_subscriptions_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
@@ -395,6 +415,9 @@ isOneToOne: false
 "register_push_token":
 { Args: { "p_platform"?: string,"p_token": string }; Returns: undefined
                            },
+"register_web_push":
+{ Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string }; Returns: undefined
+                           },
 "request_to_join":
 { Args: { "p_token": string }; Returns: string
                            },
@@ -406,6 +429,9 @@ isOneToOne: false
                            },
 "unregister_push_token":
 { Args: { "p_token": string }; Returns: undefined
+                           },
+"unregister_web_push":
+{ Args: { "p_endpoint": string }; Returns: undefined
                            }
           }
           Enums: {
