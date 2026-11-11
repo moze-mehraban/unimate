@@ -76,10 +76,13 @@ export async function rescheduleReminders(userId: string): Promise<void> {
 
   const now = Date.now();
   const until = now + HORIZON_DAYS * 86_400_000;
-  const reminders: { at: number; title: string; body: string; url: string }[] = [];
+  // key = "<kind>:<ref id>:<start or deadline ms>": the notification identifier, and the
+  // tag send-push uses, so a reminder that also comes through FCM replaces this one.
+  type Reminder = { key: string; kind: "class" | "deadline"; ref: string; occurs: number; title: string; body: string; url: string };
+  const reminders: (Reminder & { at: number })[] = [];
   // Reminder time already passed but the class/deadline is still ahead (e.g. an
-  // assignment added with a deadline closer than the reminder setting): show now, once.
-  const late: { key: string; title: string; body: string; url: string }[] = [];
+  // assignment added with a deadline closer than the reminder setting).
+  const late: Reminder[] = [];
 
   if (classMinutes !== null) {
     for (let d = 0; d <= HORIZON_DAYS; d++) {
@@ -96,8 +99,9 @@ export async function rescheduleReminders(userId: string): Promise<void> {
           { course_name: s.courseName, start_time: s.start_time.slice(0, 5), room: s.room },
           formatDeadlineFa,
         );
-        if (at <= now) late.push({ key: `class:${s.id}:${start}`, ...text, url: text.href });
-        else reminders.push({ at, ...text, url: text.href });
+        const r: Reminder = { key: `class:${s.id}:${start}`, kind: "class", ref: s.id, occurs: start, ...text, url: text.href };
+        if (at <= now) late.push(r);
+        else reminders.push({ ...r, at });
       }
     }
   }
@@ -114,28 +118,45 @@ export async function rescheduleReminders(userId: string): Promise<void> {
         { assignment_id: item.id, title: item.title, due_at: item.dueAt, course_name: item.courseName },
         formatDeadlineFa,
       );
-      if (at <= now) late.push({ key: `due:${item.id}:${due}`, ...text, url: text.href });
-      else reminders.push({ at, ...text, url: text.href });
+      const r: Reminder = { key: `deadline:${item.id}:${due}`, kind: "deadline", ref: item.id, occurs: due, ...text, url: text.href };
+      if (at <= now) late.push(r);
+      else reminders.push({ ...r, at });
     }
   }
 
-  const shown = readShownLate();
-  for (const r of late) {
-    if (shown.has(r.key)) continue;
-    await Notifications.scheduleNotificationAsync({
-      content: { title: r.title, body: r.body, data: { url: r.url } },
-      trigger: { channelId: CHANNEL },
-    });
+  // With FCM working, the server already sends late reminders (it pushes every reminder
+  // this phone hasn't scheduled). Without it, show them here, once.
+  if (!(await pushAvailable())) {
+    const shown = readShownLate();
+    for (const r of late) {
+      if (shown.has(r.key)) continue;
+      await Notifications.scheduleNotificationAsync({
+        identifier: r.key,
+        content: { title: r.title, body: r.body, data: { url: r.url } },
+        trigger: { channelId: CHANNEL },
+      });
+    }
+    // Remember only what's still relevant, so the list stays small.
+    writeShownLate(late.map((r) => r.key));
   }
-  // Remember only what's still relevant, so the list stays small.
-  writeShownLate(late.map((r) => r.key));
 
   // Only our reminders are ever scheduled, so start from a clean slate.
   await Notifications.cancelAllScheduledNotificationsAsync();
   for (const r of reminders) {
     await Notifications.scheduleNotificationAsync({
+      identifier: r.key,
       content: { title: r.title, body: r.body, data: { url: r.url } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(r.at), channelId: CHANNEL },
+    });
+  }
+
+  // Tell the server what this phone will show by itself; it pushes everything else
+  // (e.g. a deadline added while the app was closed) to this phone through FCM.
+  // Per phone: another phone on the same account may know different things.
+  if (registeredToken) {
+    await supabase.rpc("sync_phone_reminders", {
+      p_token: registeredToken,
+      p_items: reminders.map((r) => ({ kind: r.kind, ref_id: r.ref, occurs_at: new Date(r.occurs).toISOString() })),
     });
   }
 }
@@ -173,26 +194,41 @@ export function refreshReminders(userId: string) {
 }
 
 let registeredToken: string | null = null;
+let registration: Promise<boolean> | null = null;
 
-/** Saves this phone's FCM token for push. Skipped quietly when Firebase isn't configured. */
-export async function registerPushToken(): Promise<void> {
-  if (Platform.OS !== "android" || !(await ensurePermission())) return;
-  try {
-    const { data } = await Notifications.getDevicePushTokenAsync();
-    if (typeof data !== "string") return;
-    await supabase.rpc("register_push_token", { p_token: data, p_platform: "android" });
-    registeredToken = data;
-  } catch {
-    // No google-services.json in this build: local reminders still work.
-  }
+/**
+ * Saves this phone's FCM token for push, once per sign-in. Resolves to whether push
+ * works; false (quietly) when Firebase isn't configured or there's no permission.
+ */
+export function registerPushToken(): Promise<boolean> {
+  registration ??= (async () => {
+    if (Platform.OS !== "android" || !(await ensurePermission())) return false;
+    try {
+      const { data } = await Notifications.getDevicePushTokenAsync();
+      if (typeof data !== "string") return false;
+      const { error } = await supabase.rpc("register_push_token", { p_token: data, p_platform: "android" });
+      if (error) throw error;
+      registeredToken = data;
+      return true;
+    } catch {
+      // No google-services.json in this build, or offline: local reminders still work.
+      registration = null; // try again next time
+      return false;
+    }
+  })();
+  return registration;
 }
+
+const pushAvailable = () => registerPushToken();
 
 /** Before signing out: stop pushes to this phone and drop the reminders. */
 export async function clearPhoneNotifications(): Promise<void> {
   if (!supported) return;
   if (registeredToken) {
+    // Also drops this phone's reminder list on the server.
     await supabase.rpc("unregister_push_token", { p_token: registeredToken });
     registeredToken = null;
   }
+  registration = null;
   await Notifications.cancelAllScheduledNotificationsAsync();
 }

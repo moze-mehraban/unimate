@@ -259,6 +259,39 @@ await ok('unregister only removes your own subscription', async () => {
   await as(C, `select unregister_web_push($1)`, [ENDPOINT]);
   eq((await as(C, `select count(*)::int c from web_push_subscriptions`))[0].c, 0, 'C removed it');
 });
+// --- Reminders scheduled on the phone (per device) ------------------------------------
+const SESSION_REF = '00000000-0000-4000-8000-0000000000aa';
+const PHONE1 = 'fcm-token-of-a-test-phone-0001';
+const PHONE2 = 'fcm-token-of-a-test-phone-0002';
+const item = (kind, at) => ({ kind, ref_id: SESSION_REF, occurs_at: at });
+await ok('each phone reports its own scheduled reminders', async () => {
+  await as(A, `select register_push_token($1)`, [PHONE1]);
+  await as(A, `select register_push_token($1)`, [PHONE2]);
+  await as(A, `select sync_phone_reminders($1, $2::jsonb)`, [PHONE1, JSON.stringify([item('class', '2026-11-14T06:30:00Z'), item('class', '2026-11-14T06:30:00Z')])]);
+  await as(A, `select sync_phone_reminders($1, $2::jsonb)`, [PHONE2, JSON.stringify([])]);
+  eq((await as(A, `select token, count(*)::int c from phone_reminders group by token`)), [{ token: PHONE1, c: 1 }], 'phone 2 did not wipe phone 1; duplicates collapsed');
+  await as(A, `select sync_phone_reminders($1, '[]'::jsonb)`, [PHONE1]);
+  eq((await as(A, `select count(*)::int c from phone_reminders`))[0].c, 0, 'replaced by empty list');
+  await as(A, `select sync_phone_reminders($1, $2::jsonb)`, [PHONE1, JSON.stringify([item('deadline', '2026-11-15T20:00:00Z')])]);
+  eq((await as(C, `select * from phone_reminders`)).length, 0, 'C cannot see A phones');
+});
+await rejects('cannot sync a phone that is not yours', () => as(C, `select sync_phone_reminders($1, '[]'::jsonb)`, [PHONE1]));
+await rejects('reminder list must be an array', () => as(A, `select sync_phone_reminders($1, '{"kind":"class"}'::jsonb)`, [PHONE1]));
+await rejects('reminder kind is checked', () =>
+  as(A, `select sync_phone_reminders($1, $2::jsonb)`, [PHONE1, JSON.stringify([item('other', '2026-11-15T20:00:00Z')])]));
+await rejects('clients cannot write phone_reminders directly', () =>
+  as(A, `insert into phone_reminders (token, kind, ref_id, occurs_at) values ($1, 'class', $2, now())`, [PHONE1, SESSION_REF]));
+await ok('phone moving to another account starts with an empty list', async () => {
+  await as(C, `select register_push_token($1)`, [PHONE1]);
+  eq((await as(C, `select count(*)::int c from phone_reminders`))[0].c, 0, 'list dropped');
+  await as(C, `select unregister_push_token($1)`, [PHONE1]);
+});
+await ok('signing out on a phone drops its list', async () => {
+  await as(A, `select sync_phone_reminders($1, $2::jsonb)`, [PHONE2, JSON.stringify([item('class', '2026-11-16T06:30:00Z')])]);
+  await as(A, `select unregister_push_token($1)`, [PHONE2]);
+  eq((await db.query(`select count(*)::int c from phone_reminders`)).rows[0].c, 0, 'cascade-deleted');
+});
+
 await ok('push trigger runs for reminders too and is a no-op without pg_net', async () => {
   await as(C, `select register_web_push($1, $2, $3)`, [ENDPOINT, P256DH, AUTH]);
   await db.query(`insert into notifications (user_id, type, payload) values ($1, 'assignment_due_soon', '{}')`, [C]);
