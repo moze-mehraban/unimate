@@ -295,6 +295,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"phone_reminders": {
+                  Row: {
+                    "kind": string,"occurs_at": string,"ref_id": string,"token": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "kind": string,"occurs_at": string,"ref_id": string,"token": string
+                  }
+                  Update: {
+                    "kind"?: string,"occurs_at"?: string,"ref_id"?: string,"token"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "phone_reminders_token_fkey"
+      columns: ["token"]
+isOneToOne: false
+      referencedRelation: "push_tokens"
+      referencedColumns: ["token"]
+    }
+                  ]
                 },"profiles": {
                   Row: {
                     "avatar_url": string | null,"class_reminder_minutes": number | null,"created_at": string,"deadline_reminder_hours": number | null,"full_name": string,"id": string,"university": string,"updated_at": string
@@ -426,6 +446,9 @@ isOneToOne: false
                            },
 "send_due_reminders":
 { Args: { "p_now"?: string }; Returns: number
+                           },
+"sync_phone_reminders":
+{ Args: { "p_items": Json,"p_token": string }; Returns: undefined
                            },
 "unregister_push_token":
 { Args: { "p_token": string }; Returns: undefined

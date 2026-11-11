@@ -1,6 +1,7 @@
 // send-push: delivers one notification to the recipient's phones (FCM HTTP v1) and
-// browsers (Web Push). Events go to both; class/deadline reminders only to browsers,
-// because the Android app schedules those itself.
+// browsers (Web Push). Events go to both. Class/deadline reminders go to browsers, and
+// to each phone only when its app hasn't scheduled that reminder itself (phone_reminders),
+// e.g. for an assignment added while the app was closed.
 //
 // Called by the queue_push() trigger (pg_net) with {"notification_id": "…"} and
 // "Authorization: Bearer <PUSH_FUNCTION_KEY>". Secrets (supabase secrets set …):
@@ -16,7 +17,16 @@ import { sendWebPush, type VapidKeys } from "./webpush.ts";
 type ServiceAccount = { project_id: string; client_email: string; private_key: string };
 type Payload = Record<string, string | null | undefined>;
 
-const REMINDERS = new Set(["class_starting", "assignment_due_soon"]);
+/** reminder_log / phone_reminders key of a reminder notification; null for events. */
+function reminderKey(type: string, p: Payload): { kind: string; ref_id: string; occurs_at: string } | null {
+  if (type === "class_starting" && p.session_id && p.starts_at) {
+    return { kind: "class", ref_id: p.session_id, occurs_at: p.starts_at };
+  }
+  if (type === "assignment_due_soon" && p.assignment_id && p.due_at) {
+    return { kind: "deadline", ref_id: p.assignment_id, occurs_at: p.due_at };
+  }
+  return null;
+}
 
 // --- Text. Mirrors describeNotification() in packages/shared/src/notifications.ts
 // (Deno can't import the workspace package); Persian digits and Tehran time via Intl.
@@ -145,20 +155,42 @@ Deno.serve(async (req) => {
   const message = describe(n.type, n.class_id, (n.payload ?? {}) as Payload);
   if (!message) return Response.json({ sent: 0, skipped: "unknown type" });
 
+  const key = reminderKey(n.type, (n.payload ?? {}) as Payload);
   const [phones, browsers] = await Promise.all([
-    REMINDERS.has(n.type) ? 0 : sendToPhones(supabase, n.user_id, message),
+    sendToPhones(supabase, n.user_id, { ...message, tag: key ? phoneTag(key) : undefined }, key),
     sendToBrowsers(supabase, n.user_id, { ...message, tag: notification_id }),
   ]);
   return Response.json({ sent: phones + browsers, phones, browsers });
 });
 
+/** Same tag as the app's local reminder identifier, so Android shows one notification, not two. */
+const phoneTag = (k: { kind: string; ref_id: string; occurs_at: string }) => `${k.kind}:${k.ref_id}:${Date.parse(k.occurs_at)}`;
+
 type Client = ReturnType<typeof createClient>;
 type Message = { title: string; body: string; url: string };
 
-async function sendToPhones(supabase: Client, userId: string, message: Message): Promise<number> {
+async function sendToPhones(
+  supabase: Client,
+  userId: string,
+  message: Message & { tag?: string },
+  reminder: ReturnType<typeof reminderKey>,
+): Promise<number> {
   const raw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
   if (!raw) return 0;
-  const { data: tokens } = await supabase.from("push_tokens").select("token").eq("user_id", userId);
+  let { data: tokens } = await supabase.from("push_tokens").select("token").eq("user_id", userId);
+
+  // For a reminder, skip each phone that already scheduled it locally (it would come twice).
+  if (reminder && tokens?.length) {
+    const { data: covered } = await supabase
+      .from("phone_reminders")
+      .select("token")
+      .in("token", tokens.map((t) => t.token))
+      .eq("kind", reminder.kind)
+      .eq("ref_id", reminder.ref_id)
+      .eq("occurs_at", reminder.occurs_at);
+    const skip = new Set((covered ?? []).map((c) => c.token));
+    tokens = tokens.filter((t) => !skip.has(t.token));
+  }
   if (!tokens?.length) return 0;
 
   const sa: ServiceAccount = JSON.parse(raw);
@@ -175,7 +207,7 @@ async function sendToPhones(supabase: Client, userId: string, message: Message):
           notification: { title: message.title, body: message.body },
           // The app opens this route when the notification is tapped.
           data: { url: message.url },
-          android: { priority: "HIGH", notification: { channel_id: "default" } },
+          android: { priority: "HIGH", notification: { channel_id: "default", ...(message.tag ? { tag: message.tag } : {}) } },
         },
       }),
     });
