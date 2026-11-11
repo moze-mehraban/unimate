@@ -155,9 +155,9 @@ Deno.serve(async (req) => {
   const message = describe(n.type, n.class_id, (n.payload ?? {}) as Payload);
   if (!message) return Response.json({ sent: 0, skipped: "unknown type" });
 
-  const key = reminderKey(n.type, (n.payload ?? {}) as Payload);
+  const reminder = reminderKey(n.type, (n.payload ?? {}) as Payload);
   const [phones, browsers] = await Promise.all([
-    sendToPhones(supabase, n.user_id, { ...message, tag: key ? phoneTag(key) : undefined }, key),
+    sendToPhones(supabase, n.user_id, { ...message, tag: reminder ? phoneTag(reminder) : undefined }, reminder),
     sendToBrowsers(supabase, n.user_id, { ...message, tag: notification_id }),
   ]);
   return Response.json({ sent: phones + browsers, phones, browsers });
